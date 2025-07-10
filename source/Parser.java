@@ -12,10 +12,19 @@ public class Parser
 
 	public static List<Token> parse (final char source[], final long length)
 	{
+		Token lastSeen = null;
+
 		for (long i = 0; i < length; i++)
 		{
 			final char mnemonic = source[(int) i];
 
+			if (lastSeen != null && lastSeen.getMnemonic() == mnemonic && lastSeen.hasFamily())
+			{
+				lastSeen.increaseFamilySize();
+				continue;
+			}
+
+			Token token = null;
 			switch (mnemonic)
 			{
 				case '+':
@@ -23,30 +32,42 @@ public class Parser
 				case '<':
 				case '>':
 				case '.':
-				case ',': { stream.add(new Token(numberline, offsetline, mnemonic)); break; }
-				case '[': { handleOpening(); }
-				case ']': { handleClosing(); }
+				case ',':  { token = new Token(numberline, offsetline, mnemonic); break; }
+				case '[':  { token = handleOpening(); }
+				case ']':  { token = handleClosing(); }
+				case '\n': { numberline++; offsetline = 0; continue; }
+				default:   { continue; }
 			}
+
+			lastSeen = token;
+			stream.add(token);
 		}
 
 		debug();
 		return stream;
 	}
 
-	private static void handleOpening ()
+	private static Token handleOpening ()
 	{
 		final int foundAt = stream.size();
-		stream.add(new Token(numberline, offsetline, '[', foundAt));
+
+		Token token = new Token(numberline, offsetline, '[', foundAt);
+		stream.add(token);
+
 		loopStack.push(foundAt);
+		return token;
 	}
 	
-	private static void handleClosing ()
+	private static Token handleClosing ()
 	{
 		if (loopStack.size() == 0) { Fatal.prematureClosing(numberline, offsetline); }
 		final int parnerIsAt = loopStack.pop();
 
 		stream.get(parnerIsAt).setParnerPosition(stream.size());
-		stream.add(new Token(numberline, offsetline, '[', parnerIsAt));
+		Token token = new Token(numberline, offsetline, '[', parnerIsAt);
+
+		stream.add(token);
+		return token;
 	}
 
 	private static void debug ()

@@ -44,4 +44,6 @@ public class Token
 
 	public void increaseFamilySize () { this.familySize++; }
 	public void setParnerPosition (final int to)  { this.parnerPosition = to; }
+
+	public boolean hasFamily () { return this.mnemonic != '[' && this.mnemonic != ']'; }
 }
