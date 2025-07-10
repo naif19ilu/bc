@@ -5,6 +5,10 @@
  */
 
 import jxa.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 
 public class Main
 {
@@ -14,14 +18,47 @@ public class Main
 		new JxaFlag("arch",    'A', JxaFlag.FlagArg.MAY, "x64", "compile to (x64 | ARM)")
 	};
 	
+	private static long fileLength;
+	private static char sourceCode[];
+
+	private static void readSourceCode (final String filename)
+	{
+		File file = new File(filename);
+		if (!file.exists())
+		{	
+			Fatal.fileDoesNotExist(filename);
+		}
+		if (!file.canRead())
+		{
+			Fatal.fileCannotBeRead(filename);
+		}
+
+		FileReader reader;
+		try
+		{
+			reader = new FileReader(file);
+			fileLength = file.length();
+			sourceCode = new char[(int) fileLength];
+			reader.read(sourceCode);
+			reader.close();
+		}
+		catch (IOException why)
+		{
+			if (why instanceof FileNotFoundException)
+			{
+				Fatal.fileDoesNotExist(filename);
+			}
+			Fatal.InputOutputInt();
+		}	
+	}
+	
 	public static void main(String[] args)
 	{
 		Jxa.parse("bc", args, flags);
-		if (flags[0].getArgument().isEmpty())
-		{
-			JxaDoc.printUsage("bc", flags);
-		}
-		System.out.printf("compile: %s\n", flags[0].getArgument());
+		final String filename = flags[0].getArgument();
+
+		if (filename.isEmpty()) { JxaDoc.printUsage("bc", flags); }
+		readSourceCode(filename);
 	}
 }
 
