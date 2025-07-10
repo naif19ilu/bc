@@ -1,6 +1,6 @@
 /*
  * bc - Brainfuck compiler
- * Jul 8, 2025
+ * Jul 9, 2025
  * Error handler
  */
 

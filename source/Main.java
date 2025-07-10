@@ -1,6 +1,6 @@
 /*
  * bc - Brainfuck compiler
- * Jul 7, 2025
+ * Jul 9, 2025
  * Main file
  */
 
@@ -9,6 +9,30 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+
+class Token
+{
+	private final int  numberLine;
+	private final int  lineOffset;
+	private       int  helper;
+	private final char mnemonic;
+	
+	public Token (int nl, int off, int help, char ch)
+	{
+		this.numberLine = nl;
+		this.lineOffset = off;
+		this.helper     = help;
+		this.mnemonic   = ch;
+	}
+	
+	public char getMnemonic ()   { return this.mnemonic; }
+	public int  getNumberLine () { return this.numberLine; }
+	public int  getLineOffset () { return this.lineOffset; }
+	public int  getHelper ()     { return this.helper; }
+	
+	public void increaseFamily ()   { this.helper++; }
+	public void setParner (int pos) { this.helper = pos; }
+}
 
 public class Main
 {
