@@ -8,43 +8,12 @@ import java.util.List;
 
 class Elf
 {
-	private static enum Arch
-	{
-		x64,
-		ARM
-	};
+}
 
-	private static Arch             arch       = Arch.x64;
-	private static FileOutputStream outFile    = null;
-	private static String           filename   = null;
-	private static int              fileOffset = 0;
+class Compiler
+{
 
-	private static void createFile ()
-	{
-		try { outFile = new FileOutputStream(filename); }
-		catch (IOException why) { Fatal.cannotCreateFile(filename); }
-	}
 
-	private static void writeRawBytes (final byte code[], int length)
-	{
-		try { outFile.write(code, 0, length); fileOffset += length; }
-		catch (IOException why) { Fatal.InputOutputInt(filename); }
-	}
-
-	public static void produceElf (final String outputName, final String architecture, final int memSize, final List<Token> stream)
-	{
-		if (architecture.equals("ARM")) { arch = Arch.ARM; }
-		filename = outputName;
-
-		createFile();
-
-		writeRawBytes(new byte[] {0x7f, 0x45, 0x4c, 0x46}, 4);                          /* This is a ELF file */
-		writeRawBytes(new byte[] {0x02, 0x01, 0x01, 0x00}, 4);                          /* 64bit arch PC, little endian, version, UNIX System V ABI */
-		writeRawBytes(new byte[] {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 8);  /* padding */
-
-		try { outFile.close(); }
-		catch (IOException why) { Fatal.InputOutputInt(outputName); }
-	}
 }
 
 public class Main
@@ -58,7 +27,6 @@ public class Main
 	{
 		new JxaFlag("compile", 'c', JxaFlag.FlagArg.YES,           "compiling source"),
 		new JxaFlag("output",  'o', JxaFlag.FlagArg.MAY, "a.out",  "place the output in the file provided (a.out by default)"),
-		new JxaFlag("arch",    'a', JxaFlag.FlagArg.MAY, "x86_64", "arch to be used (x64 or ARM) (x64 by default)"),
 		new JxaFlag("memory",  'm', JxaFlag.FlagArg.MAY, "30000",  "memory size (in bytes 30000 by default)")
 	};
 
@@ -111,11 +79,5 @@ public class Main
 		finally { memSize = 30000; }
 
 		handleFile(compile);
-		Elf.produceElf(
-			flags[1].getArgument(),
-			flags[2].getArgument(),
-			memSize,
-			Parser.parse(source, sourceLength)
-		);
 	}
 }
