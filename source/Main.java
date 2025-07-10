@@ -60,7 +60,5 @@ public class Main
 		}
 
 		handleFile(compile);
-
-		System.out.println(source);
 	}
 }
