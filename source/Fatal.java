@@ -71,4 +71,15 @@ public class Fatal
 		System.err.println(fmt);
 		if (exit) { System.exit(1); }
 	}
+
+	public static void cannotCreateFile (final String filename)
+	{
+		final String fmt = String.format(
+			"bc: \u001b[31mfatal\u001b[0m: cannot create %s executable file!\n" +
+			"check that the file does not exist already",
+			filename
+		);
+		System.err.println(fmt);
+		System.exit(1);
+	}
 }
