@@ -45,4 +45,16 @@ public class Fatal
 		System.err.println(fmt);
 		System.exit(1);
 	}
+
+	public static void prematureClosing (final int numberline, final int offsetline)
+	{
+		final String fmt = String.format(
+			"bc: \u001b[31mfatal\u001b[0m: premature loop closing" +
+			"byte on %d line with an offset of %d has no opening-parner, check all loops are balanced!",
+			numberline,
+			offsetline
+		);
+		System.err.println(fmt);
+		System.exit(1);
+	}
 }
