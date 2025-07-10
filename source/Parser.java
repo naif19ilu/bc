@@ -45,7 +45,7 @@ public class Parser
 			stream.add(token);
 		}
 
-		debug();
+		if (!loopStack.isEmpty()) { reportAllUnclosedOnes(); }
 		return stream;
 	}
 
@@ -68,20 +68,16 @@ public class Parser
 		return token;
 	}
 
-	private static void debug ()
+	private static void reportAllUnclosedOnes ()
 	{
-		for (int i = 0; i < stream.size(); i++)
+		while (true)
 		{
-			Token t = stream.get(i);
+			final int at = loopStack.pop();
+			Token err = stream.get(at);
 
-			if (t.hasFamily())
-			{
-				System.out.printf("(%d:%d): %c:%d\n", t.getNumberline(), t.getOffsetline(), t.getMnemonic(), t.getFamilySize());
-			}
-			else
-			{
-				System.out.printf("(%d:%d): %c:%d\n", t.getNumberline(), t.getOffsetline(), t.getMnemonic(), t.getParnerPos());
-			}
+			if (loopStack.size() == 0) { Fatal.unclosedLoop(err.getNumberline(), err.getOffsetline(), true); }
+			else { Fatal.unclosedLoop(err.getNumberline(), err.getOffsetline(), false); }
+			System.err.println("");
 		}
 	}
 }

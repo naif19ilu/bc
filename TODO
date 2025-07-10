@@ -1,6 +1,8 @@
 
-    [ ] Parse arguments
-    [ ] Read file
-    [ ] Error handler class
-    [ ] Parse source code
+    [x] Parse arguments
+    [x] Read file
+    [x] Error handler class
+    [x] Parse source code
+	[ ] Produce ELF file (x64)
+	[ ] Produce ELF file (ARM)
 

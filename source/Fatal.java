@@ -58,4 +58,17 @@ public class Fatal
 		System.err.println(fmt);
 		System.exit(1);
 	}
+
+	public static void unclosedLoop (final int numberline, final int offsetline, final boolean exit)
+	{
+		final String fmt = String.format(
+			"bc: \u001b[31mfatal\u001b[0m: unclosed loop!\n" +
+			"byte on %d line with an offset of %d has no closing-parner\n" +
+			"check all loops are balanced!",
+			numberline,
+			offsetline
+		);
+		System.err.println(fmt);
+		if (exit) { System.exit(1); }
+	}
 }
