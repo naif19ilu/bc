@@ -25,7 +25,6 @@ class Compiler
 	*/
 	private static int codeOffset = 0x00000001;
 
-
 	private static void writeBytes (final Integer[] inst)
 	{
 		for (int i = 0; i < inst.length; i++)
@@ -45,7 +44,19 @@ class Compiler
 		};
 	}
 
-	public static void produceByteCode (final List<Token> stream, final int memSize)
+	private static void emmitPlus (final int times) { }
+	private static void emmitMinus (final int times) { }
+	private static void emmitNext (final int times) { }
+	private static void emitPrevs (final int times) { }
+	private static void emmitIO (final int times, final char op) { }
+	private static void emmitLoopBeg (final int parnerPos) { }
+	private static void emmitLoopCls (final int parnerPos) { }
+
+	private static void dumpIntoFile (final String filename)
+	{
+	}
+
+	public static void produceByteCode (final List<Token> stream, final String outname, final int memSize)
 	{
 		/* pushq %rbp
 		 * movq  %rsp, %rbp
@@ -55,21 +66,6 @@ class Compiler
 		writeBytes(new Integer[] {0x55, 0x48, 0x89, 0xe5, 0x48, 0x81, 0xec});
 		writeBytes(getLilEndian(memSize));
 		writeBytes(new Integer[] {0x4c, 0x8d, 0x45, 0x00});
-
-		for (int i = 0; i < stream.size(); i++)
-		{
-			switch (stream.get(i).getMnemonic())
-			{
-				case '+': { writeBytes(new Integer[] {0x41, 0xfe, 0x00}); break; }
-				case '-': { writeBytes(new Integer[] {0x41, 0xfe, 0x08}); break; }
-				case '>': { writeBytes(new Integer[] {0x49, 0xff, 0xc0}); break; }
-				case '<': { writeBytes(new Integer[] {0x49, 0xff, 0xc8}); break; }
-				case '.': { writeBytes(new Integer[] {}); break; }
-				case ',': { writeBytes(new Integer[] {}); break; }
-				case '[': { writeBytes(new Integer[] {}); break; }
-				case ']': { writeBytes(new Integer[] {}); break; }
-			}
-		}
 	}
 }
 
@@ -136,6 +132,6 @@ public class Main
 		finally { memSize = 30000; }
 
 		handleFile(compile);
-		Compiler.produceByteCode(Parser.parse(source, sourceLength), memSize);
+		Compiler.produceByteCode(Parser.parse(source, sourceLength), compile, memSize);
 	}
 }
