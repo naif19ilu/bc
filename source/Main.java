@@ -5,15 +5,65 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileOutputStream;
 import java.util.List;
+import java.util.ArrayList;
 
-class Elf
-{
-}
+// prefix = not used
+// rex    = whether i want to use 64 bit register
+// opcode = what to do
+// modR/M =
+//    mod = addressing mode (register or memory)
+//    reg = register operand (source)
+//    r/m = register or mem op (destination)
 
 class Compiler
 {
+	private static List<Byte> binary = new ArrayList<Byte>();
+	private int noPages = 1;
 
+	private static void writeBytes (final Integer[] inst)
+	{
+		for (int i = 0; i < inst.length; i++)
+		{
+			binary.add((Byte) inst[i].byteValue());
+		}
+	}
 
+	private static Integer[] getLilEndian (final int num)
+	{
+		return new Integer[] {
+			((num >> 0 ) & 0xff),
+			((num >> 8 ) & 0xff),
+			((num >> 16) & 0xff),
+			((num >> 24) & 0xff)
+		};
+	}
+
+	public static void produceByteCode (final List<Token> stream, final int memSize)
+	{
+		/* pushq %rbp
+		 * movq  %rsp, %rbp
+		 * subq  memSize, %rsp
+		 * leaq  (%rbp), %r8
+		 */
+		writeBytes(new Integer[] {0x55, 0x48, 0x89, 0xe5, 0x48, 0x81, 0xec});
+		writeBytes(getLilEndian(memSize));
+		writeBytes(new Integer[] {0x4c, 0x8d, 0x45, 0x00});
+
+		/* offset from the first instruction executed (plus one
+		 * in order to avoid overwiting the current instruction
+		 */
+		int codeOffset = 0x00000000 + binary.size() + 1;
+
+		for (int i = 0; i < stream.size(); i++)
+		{
+			switch (stream.get(i).getMnemonic())
+			{
+				case '+': { writeBytes(new Integer[] {0x41, 0xfe, 0x00}); break; }
+				case '-': { writeBytes(new Integer[] {0x41, 0xfe, 0x08}); break; }
+				case '>': {}
+			}
+		}
+	}
 }
 
 public class Main
@@ -79,5 +129,6 @@ public class Main
 		finally { memSize = 30000; }
 
 		handleFile(compile);
+		Compiler.produceByteCode(Parser.parse(source, sourceLength), memSize);
 	}
 }
