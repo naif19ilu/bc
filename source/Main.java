@@ -20,11 +20,18 @@ class Compiler
 	private static List<Byte> binary = new ArrayList<Byte>();
 	private int noPages = 1;
 
+	/* offset from the first instruction executed (plus one
+	* in order to avoid overwiting the current instruction
+	*/
+	private static int codeOffset = 0x00000001;
+
+
 	private static void writeBytes (final Integer[] inst)
 	{
 		for (int i = 0; i < inst.length; i++)
 		{
 			binary.add((Byte) inst[i].byteValue());
+			codeOffset++;
 		}
 	}
 
@@ -49,18 +56,18 @@ class Compiler
 		writeBytes(getLilEndian(memSize));
 		writeBytes(new Integer[] {0x4c, 0x8d, 0x45, 0x00});
 
-		/* offset from the first instruction executed (plus one
-		 * in order to avoid overwiting the current instruction
-		 */
-		int codeOffset = 0x00000000 + binary.size() + 1;
-
 		for (int i = 0; i < stream.size(); i++)
 		{
 			switch (stream.get(i).getMnemonic())
 			{
 				case '+': { writeBytes(new Integer[] {0x41, 0xfe, 0x00}); break; }
 				case '-': { writeBytes(new Integer[] {0x41, 0xfe, 0x08}); break; }
-				case '>': {}
+				case '>': { writeBytes(new Integer[] {0x49, 0xff, 0xc0}); break; }
+				case '<': { writeBytes(new Integer[] {0x49, 0xff, 0xc8}); break; }
+				case '.': { writeBytes(new Integer[] {}); break; }
+				case ',': { writeBytes(new Integer[] {}); break; }
+				case '[': { writeBytes(new Integer[] {}); break; }
+				case ']': { writeBytes(new Integer[] {}); break; }
 			}
 		}
 	}
