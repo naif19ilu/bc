@@ -42,7 +42,6 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 		.safe     = safeMode
 	};
 
-
 	typedef void (*handlerfx_t) (struct token*, struct Memory*);
 	handlerfx_t inc, dec;
 
@@ -53,7 +52,6 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 		case 4: { mem.memory = (unsigned int*)   calloc(tapeSize, sizeof(unsigned int));   mem.max = UINT_MAX;  inc = handle_add32; dec = handle_dec32; break; }
 		case 8: { mem.memory = (unsigned long*)  calloc(tapeSize, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; break; }
 	}
-	printf("hey: %ld\n", mem.max);
 
 	for (size_t i = 0; i < stream->length; i++)
 	{
@@ -116,7 +114,6 @@ inline static void handle_add16 (struct token *t, struct Memory *mem)
 
 	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
-		printf(">>>> %lu\n", a + t->groupSize);
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
 	*word += mem->tapeSize;
@@ -177,5 +174,4 @@ inline static void handle_dec64 (struct token *t, struct Memory *mem)
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_DECS_UNDRFLOW, FATAL_ISNT_MULTIPLE);
 	}
 	*quad -= (unsigned long) t->groupSize;
-
 }
