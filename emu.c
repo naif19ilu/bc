@@ -152,7 +152,6 @@ inline static void handle_dec32 (struct token *t, struct Memory *mem)
 	*longg -= (unsigned int) t->groupSize;
 }
 
-
 inline static void handle_add64 (struct token *t, struct Memory *mem)
 {
 	unsigned int *quad = &(((unsigned int*) mem->memory)[mem->at]);
