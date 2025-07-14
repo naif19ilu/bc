@@ -8,4 +8,6 @@
 void fatal_file_ops (const char*);
 void fatal_memory_ops (const char*);
 
+void fatal_max_nestedloop_level (const char*, const unsigned short, const unsigned short);
+
 #endif

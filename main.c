@@ -2,28 +2,12 @@
  * Jul 13, 2025
  * Main file
  */
+#include "bc.h"
 #include "cxa.h"
 #include "fatal.h"
+#include "lexpa.h"
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-
-struct bc
-{
-	struct
-	{
-		char          *compile;
-		char          *output;
-		char          *source;
-		unsigned int  tapeSize;
-		unsigned char cellSize;
-		bool          safeMode;
-	} args;
-
-	char   *source;
-	size_t length;
-};
 
 static size_t read_file (const char*, char**);
 
@@ -60,6 +44,8 @@ int main (int argc, char **argv)
 	bc.args.safeMode = flags[6].meta & CXA_FLAG_SEEN_MASK;
 	bc.length = read_file(bc.args.compile, &bc.source);
 
+	lexpa_run(bc.source, bc.length, &bc.stream, bc.args.safeMode);
+
 	return 0;
 }
 
@@ -76,10 +62,7 @@ static size_t read_file (const char *filename, char **source)
 	fseek(file, 0, SEEK_SET);
 
 	*source = (char*) calloc(size + 1, sizeof(char));
-	if (*source == NULL)
-	{
-		fatal_memory_ops("cannot reserve space for reading the source code");
-	}
+	CHECK_POINTER(*source, "reserving space for reading the source code");
 
 	fread(*source, 1, size, file);
 	if (ferror(file))

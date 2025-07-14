@@ -15,6 +15,8 @@
  */
 const char* strerrordesc_np(int);
 
+static unsigned short get_proper_context (const char*);
+
 void fatal_file_ops (const char *filename)
 {
 	const char *const fmt =
@@ -37,3 +39,19 @@ void fatal_memory_ops (const char *desc)
 	exit(EXIT_FAILURE);
 }
 
+void fatal_max_nestedloop_level (const char *context, const unsigned short numline, const unsigned short offline)
+{
+	fprintf(stderr, "bc:\x1b[31mfatal:\x1b[0m max nested loop level reached! What are you even progrmming at this point?\n");
+	const unsigned short show = get_proper_context(context + 1);
+	fprintf(stderr, "  %-5d \x1b[5m%c\x1b[0m%.*s\n", numline, *context, show, context + 1);
+	fprintf(stderr, "        ~ offset: %d\n", offline);
+	exit(EXIT_FAILURE);
+}
+
+static unsigned short get_proper_context (const char *cx)
+{
+	unsigned short i = 1;
+	for (; cx[i] != ' ' && i <= 10 && cx[i] != '\n'; i++)
+		 ;
+	return i;
+}
