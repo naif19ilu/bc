@@ -32,12 +32,12 @@ static char *get_name_of_argtype (const CxaFlagMeta meta)
 	}
 	switch ((meta & CXA_ARG_TYPE_MASK))
 	{
-		case CXA_FLAG_ARG_TYPE_STR: return "string";
-		case CXA_FLAG_ARG_TYPE_CHR: return "character";
-		case CXA_FLAG_ARG_TYPE_SHT: return "short";
-		case CXA_FLAG_ARG_TYPE_INT: return "int";
-		case CXA_FLAG_ARG_TYPE_LNG: return "long";
-		case CXA_FLAG_ARG_TYPE_DBL: return "double";
+		case CXA_FLAG_ARG_TYPE_STR: return "-string";
+		case CXA_FLAG_ARG_TYPE_CHR: return "-character";
+		case CXA_FLAG_ARG_TYPE_SHT: return "-short";
+		case CXA_FLAG_ARG_TYPE_INT: return "-int";
+		case CXA_FLAG_ARG_TYPE_LNG: return "-long";
+		case CXA_FLAG_ARG_TYPE_DBL: return "-double";
 	}
 	return NULL;
 }
@@ -76,7 +76,7 @@ static void error_missing_argument (const char *longname, const char shortname, 
 	const char *const fmt =
 	"cxa:%s:\x1b[31merror:\x1b[0m missing argument\n"
 	"   '--%s' (%c) is missing its argument of type <%s>\n";
-	fprintf(stderr, fmt, Project, longname, shortname, get_name_of_argtype(meta));
+	fprintf(stderr, fmt, Project, longname, shortname, get_name_of_argtype(meta) + 1);
 	exit(EXIT_FAILURE);
 }
 
@@ -175,7 +175,7 @@ void cxa_print_usage (const char *desc, const struct CxaFlag *flags)
 		const CxaFlagMeta meta = flags[i].meta;
 
 		printf(
-			"  \x1b[2m-\x1b[0m%c or \x1b[2m--\x1b[0m%-*s%-*s(arg? %s-%s)\n",
+			"  \x1b[2m-\x1b[0m%c or \x1b[2m--\x1b[0m%-*s%-*s(arg? %s%s)\n",
 			flags[i].shortname, largestname, flags[i].longname,
 			largestdesc, flags[i].description, argstr[meta & CXA_FLAG_TAKER_MASK],
 			get_name_of_argtype(meta)

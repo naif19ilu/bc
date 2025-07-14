@@ -6,7 +6,6 @@
 #include "fatal.h"
 
 #include <stdlib.h>
-#include <limits.h>
 
 struct openLoopStack
 {
@@ -20,8 +19,7 @@ static struct token *handle_accumulative (struct stream*, const char*, const uns
 static void handle_opening (struct openLoopStack*, struct stream*, const char*, const unsigned short, const unsigned short);
 static void handle_closing (struct openLoopStack*, struct stream*, const char*, const unsigned short, const unsigned short);
 
-
-void lexpa_run (const char *source, const size_t length, struct stream *stream)
+void lexpa_lex_n_parse (const char *source, const size_t length, struct stream *stream)
 {
 	stream->length   = 0;
 	stream->capacity = STREAM_GROWTH_FACTOR;
@@ -67,7 +65,7 @@ void lexpa_run (const char *source, const size_t length, struct stream *stream)
 		leave = true;
 	}
 
-	if (leave)    { exit(EXIT_FAILURE); }
+	if (leave) { exit(EXIT_FAILURE); }
 }
 
 static struct token *get_next_token (struct stream *stream)

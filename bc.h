@@ -41,12 +41,15 @@ struct bc
 	size_t        length;
 	struct
 	{
-		unsigned int  tapeSize;
-		unsigned char cellSize;
-		char          *compile;
-		char          *output;
-		char          *source;
-		bool          safeMode;
+		unsigned int   offset;
+		unsigned int   tapeSize;
+		unsigned short display;
+		unsigned char  cellSize;
+		char           *compile;
+		char           *output;
+		char           *source;
+		bool           safeMode;
+		bool           emulate;
 	} args;
 };
 

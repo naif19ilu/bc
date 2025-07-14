@@ -2,7 +2,7 @@
 # Jul 13, 2025
 # Makefile
 
-objs  = main.o cxa.o fatal.o lexpa.o
+objs  = main.o cxa.o fatal.o lexpa.o emu.o
 flags = -Wall -Wextra -Wpedantic
 opt   = -O0
 std   = -std=c99

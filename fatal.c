@@ -7,6 +7,7 @@
 #include "fatal.h"
 #include <errno.h>
 #include <stdio.h>
+
 #include <stdlib.h>
 
 /* 'strerrordesc_np' function returns in fact a string
@@ -46,6 +47,8 @@ void fatal_source_fatal (const char *context, const unsigned short numline, cons
 		"bc:\x1b[31mfatal:\x1b[0m max nested loop level reached! What are you even progrmming at this point?\n",
 		"bc:\x1b[31mfatal:\x1b[0m premature opening, defining a ']' without previous '['\n",
 		"bc:\x1b[31mfatal:\x1b[0m undefined closing, a '[' was defined without final ']'\n",
+		"bc:\x1b[31mfatal:\x1b[0msafe-mode: memory overflow\n",
+		"bc:\x1b[31mfatal:\x1b[0msafe-mode: memory underflow\n",
 	};
 
 	fprintf(stderr, "%s", reasons[kind]);
