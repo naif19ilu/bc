@@ -29,7 +29,7 @@ int main (int argc, char **argv)
 		CXA_SET_STR("output",  "name for the objfile (a.out default)",                          &bc.args.output,   CXA_FLAG_TAKER_MAY, 'o'),
 		CXA_SET_STR("source",  "produce asm code, no ELF (a.out default)",                      &bc.args.source,   CXA_FLAG_TAKER_MAY, 'S'),
 		CXA_SET_INT("tapesz",  "tape size (30000 default)",                                     &bc.args.tapeSize, CXA_FLAG_TAKER_MAY, 'T'),
-		CXA_SET_CHR("cellsz",  "cell size (1 B default. 1,2,4,8 B)",                            &bc.args.cellSize, CXA_FLAG_TAKER_MAY, 'C'),
+		CXA_SET_INT("cellsz",  "cell size (1 B default. 1,2,4,8 B)",                            &bc.args.cellSize, CXA_FLAG_TAKER_MAY, 'C'),
 		CXA_SET_CHR("usage",   "displays this message",                                         NULL,              CXA_FLAG_TAKER_NON, 'u'),
 		CXA_SET_CHR("safe",    "enables safe mode",                                             NULL,              CXA_FLAG_TAKER_NON, 's'),
 		CXA_SET_CHR("emu-mem", "emulates memory (disabled by default)",                         NULL,              CXA_FLAG_TAKER_NON, 'E'),
@@ -50,18 +50,23 @@ int main (int argc, char **argv)
 	bc.args.safeMode = flags[6].meta & CXA_FLAG_SEEN_MASK;
 	bc.args.emulate  = flags[7].meta & CXA_FLAG_SEEN_MASK;
 
+	if (bc.args.cellSize != 1 && bc.args.cellSize != 2 && bc.args.cellSize != 4 && bc.args.cellSize != 8)
+	{
+		bc.args.cellSize = 1;
+	}
+	if (bc.args.tapeSize < 30000)
+	{
+		bc.args.tapeSize = 30000;
+	}
+
 	bc.length = read_file(bc.args.compile, &bc.source);
 	lexpa_lex_n_parse(bc.source, bc.length, &bc.stream);
 
-	// CHECK cellSize is either 1,2,4,8
-
-	if (bc.args.emulate)
+	if (bc.args.emulate || bc.args.safeMode)
 	{
 		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode);
 		return 0;
 	}
-
-
 	return 0;
 }
 

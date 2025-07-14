@@ -49,7 +49,8 @@ void fatal_source_fatal (const char *context, const unsigned short numline, cons
 		"bc:\x1b[31mfatal:\x1b[0m undefined closing, a '[' was defined without final ']'\n",
 		"bc:\x1b[31mfatal:\x1b[0msafe-mode: memory overflow\n",
 		"bc:\x1b[31mfatal:\x1b[0msafe-mode: memory underflow\n",
-
+		"bc:\x1b[31mfatal:\x1b[0msafe-mode: cell overflow\n",
+		"bc:\x1b[31mfatal:\x1b[0msafe-mode: cell underflow\n",
 	};
 
 	fprintf(stderr, "%s", reasons[kind]);
