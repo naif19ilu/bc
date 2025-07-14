@@ -17,6 +17,7 @@ static struct token *get_next_token (struct stream*);
 static struct token *handle_accumulative (struct stream*, const char*, const unsigned short, const unsigned short);
 
 static void handle_opening (struct openLoopStack*, struct stream*, const char*, const unsigned short, const unsigned short);
+static void handle_closing (struct openLoopStack*, struct stream*, const char*, const unsigned short, const unsigned short);
 
 void lexpa_run (const char *source, const size_t length, struct stream *stream, const bool safeMode)
 {
@@ -50,10 +51,9 @@ void lexpa_run (const char *source, const size_t length, struct stream *stream, 
 			case ',':
 			case '.': { last = handle_accumulative(stream, source + i, numline, offline); break; }
 			case '[': { handle_opening(&stack, stream, source + i, numline, offline); break; }
-			case ']':
+			case ']': { handle_closing(&stack, stream, source + i, numline, offline); break; }
 			case 10 : { numline++; offline = 0; continue; }
 		}
-
 		offline++;
 	}
 
@@ -87,17 +87,37 @@ static void handle_opening (struct openLoopStack *stack, struct stream *stream, 
 {
 	if (stack->at == OPENLOOP_STACK_MAX_CAP)
 	{
-		fatal_max_nestedloop_level(context, numline, offline);
+		fatal_source_fatal(context, numline, offline, FATAL_SRC_MAX_NESTED_LEVEL);
 	}
 
 	struct token *t = get_next_token(stream);
 
 	t->groupSize      = 1;
-	t->parnerPosition = -1;
+	t->parnerPosition = stream->length - 1;
 	t->meta.numline   = numline;
 	t->meta.offline   = offline;
 	t->meta.mnemonic  = *context;
 	t->meta.context   = (char*) context;
 
 	stack->stack[stack->at++] = t;
+}
+
+static void handle_closing (struct openLoopStack *stack, struct stream *stream, const char *context, const unsigned short numline, const unsigned short offline)
+{
+	if (stack->at == 0)
+	{
+		fatal_source_fatal(context, numline, offline, FATAL_SRC_PREMATURE_CLOSING);
+	}
+
+	struct token *close   = get_next_token(stream);
+	struct token* open    = stack[--stack->at];
+
+	close->parnerPosition = open->parnerPosition;
+	open->parnerPosition  = stream->length - 1;
+
+	close->groupSize      = 1;
+	close->meta.numline   = numline;
+	close->meta.offline   = offline;
+	close->meta.mnemonic  = *context;
+	close->meta.context   = (char*) context;
 }

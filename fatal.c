@@ -39,9 +39,15 @@ void fatal_memory_ops (const char *desc)
 	exit(EXIT_FAILURE);
 }
 
-void fatal_max_nestedloop_level (const char *context, const unsigned short numline, const unsigned short offline)
+void fatal_source_fatal (const char *context, const unsigned short numline, const unsigned short offline, const enum FatalSourceKind kind)
 {
-	fprintf(stderr, "bc:\x1b[31mfatal:\x1b[0m max nested loop level reached! What are you even progrmming at this point?\n");
+	static const char *const reasons[] =
+	{
+		"bc:\x1b[31mfatal:\x1b[0m max nested loop level reached! What are you even progrmming at this point?\n",
+		"bc:\x1b[31mfatal:\x1b[0m premature closing, defining a '[' without previous ']'\n",
+	};
+
+	fprintf(stderr, "%s", reasons[kind]);
 	const unsigned short show = get_proper_context(context + 1);
 	fprintf(stderr, "  %-5d \x1b[5m%c\x1b[0m%.*s\n", numline, *context, show, context + 1);
 	fprintf(stderr, "        ~ offset: %d\n", offline);

@@ -6,7 +6,7 @@
 #define BC_H
 
 #define STREAM_GROWTH_FACTOR     128
-#define OPENLOOP_STACK_MAX_CAP   0
+#define OPENLOOP_STACK_MAX_CAP   256
 #define CHECK_POINTER(ptr, a)    do { if (ptr) break; fatal_memory_ops(a); } while (0)
 
 #include <stdio.h>
