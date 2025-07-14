@@ -57,6 +57,15 @@ void lexpa_run (const char *source, const size_t length, struct stream *stream, 
 		offline++;
 	}
 
+	bool leave = false;
+	for (unsigned short i = 0; i < stack.at; i++)
+	{
+		struct token *e = stack.stack[i];
+		fatal_source_fatal(e->meta.context, e->meta.numline, e->meta.offline, FATAL_SRC_UNMATCHED_OPEN, FATAL_ISNT_MULTIPLE);
+		leave = true;
+	}
+
+	if (leave) exit(EXIT_FAILURE);
 }
 
 static struct token *get_next_token (struct stream *stream)
@@ -87,7 +96,7 @@ static void handle_opening (struct openLoopStack *stack, struct stream *stream, 
 {
 	if (stack->at == OPENLOOP_STACK_MAX_CAP)
 	{
-		fatal_source_fatal(context, numline, offline, FATAL_SRC_MAX_NESTED_LEVEL);
+		fatal_source_fatal(context, numline, offline, FATAL_SRC_MAX_NESTED_LEVEL, FATAL_ISNT_MULTIPLE);
 	}
 
 	struct token *t = get_next_token(stream);
@@ -106,11 +115,11 @@ static void handle_closing (struct openLoopStack *stack, struct stream *stream, 
 {
 	if (stack->at == 0)
 	{
-		fatal_source_fatal(context, numline, offline, FATAL_SRC_PREMATURE_CLOSING);
+		fatal_source_fatal(context, numline, offline, FATAL_SRC_PREMATURE_OPENING, FATAL_ISNT_MULTIPLE);
 	}
 
 	struct token *close   = get_next_token(stream);
-	struct token* open    = stack[--stack->at];
+	struct token* open    = stack->stack[--stack->at];
 
 	close->parnerPosition = open->parnerPosition;
 	open->parnerPosition  = stream->length - 1;
