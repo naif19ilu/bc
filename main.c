@@ -15,12 +15,12 @@ int main (int argc, char **argv)
 {
 	struct bc bc =
 	{
-		.args.output    = "a.out",
-		.args.source    = "a.s",
-		.args.tapeSize  = 30000,
-		.args.cellSize  = 1,
-		.args.offset    = 0,
-		.args.display   = 100
+		.args.output    = BC_DEFAULT_o,
+		.args.source    = BC_DEFAULT_S,
+		.args.tapeSize  = BC_DEFAULT_T,
+		.args.cellSize  = BC_DEFAULT_C,
+		.args.offset    = BC_DEFAULT_O,
+		.args.display   = BC_DEFAULT_d
 	};
 
 	struct CxaFlag flags[] =
@@ -52,11 +52,25 @@ int main (int argc, char **argv)
 
 	if (bc.args.cellSize != 1 && bc.args.cellSize != 2 && bc.args.cellSize != 4 && bc.args.cellSize != 8)
 	{
+		fatal_nonfatal_warn("invalid argument for -C (%d), it can only be 1,2,4 or 8; setting to default (%d)\n", bc.args.cellSize, BC_DEFAULT_C);
 		bc.args.cellSize = 1;
 	}
 	if (bc.args.tapeSize < 30000)
 	{
+		fatal_nonfatal_warn("invalid argument for -T (%d), it must be greater than 30000; setting to default (%d)\n", bc.args.tapeSize, BC_DEFAULT_T);
 		bc.args.tapeSize = 30000;
+	}
+	if (bc.args.offset > bc.args.tapeSize)
+	{
+		fatal_nonfatal_warn("invalid values for -O (%d) and -T (%d), -T must be greater than -O; setting both to default\n", bc.args.offset, bc.args.tapeSize);
+		bc.args.tapeSize = 30000;
+		bc.args.offset   = 0;
+	}
+	if (bc.args.display > bc.args.tapeSize)
+	{
+		fatal_nonfatal_warn("invalid values for -d (%d) and -T (%d), -T must be greater than -d; setting both to default\n", bc.args.display, bc.args.tapeSize);
+		bc.args.tapeSize = 30000;
+		bc.args.display  = 100;
 	}
 
 	bc.length = read_file(bc.args.compile, &bc.source);
@@ -64,7 +78,7 @@ int main (int argc, char **argv)
 
 	if (bc.args.emulate || bc.args.safeMode)
 	{
-		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode);
+		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode, bc.args.offset, bc.args.display);
 		return 0;
 	}
 	return 0;

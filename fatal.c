@@ -5,10 +5,11 @@
 #define _GNU_SOURCE
 
 #include "fatal.h"
+
 #include <errno.h>
 #include <stdio.h>
-
 #include <stdlib.h>
+#include <stdarg.h>
 
 /* 'strerrordesc_np' function returns in fact a string
  * but gcc does not recognize it so better redefine the
@@ -68,4 +69,13 @@ static unsigned short get_proper_context (const char *cx)
 	for (; cx[i] != ' ' && i <= 10 && cx[i] != '\n'; i++)
 		 ;
 	return i;
+}
+
+void fatal_nonfatal_warn (const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	fprintf(stdout, "bc:\x1b[33mwarning:\x1b[0m hey! non fatal but be aware of it!\n");
+	vfprintf(stdout, fmt, args);
+	va_end(args);
 }

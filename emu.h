@@ -6,6 +6,6 @@
 #define BC_EMU_H
 #include "bc.h"
 
-void emu_emulate (const struct stream*, const unsigned int, const unsigned char, const bool);
+void emu_emulate (const struct stream*, const unsigned int, const unsigned char, const bool, const unsigned int, const unsigned int);
 
 #endif

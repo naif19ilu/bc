@@ -29,5 +29,6 @@ void fatal_file_ops (const char*);
 void fatal_memory_ops (const char*);
 
 void fatal_source_fatal (const char*, const unsigned short, const unsigned short, const enum FatalSourceKind, const enum FatalIsMultiple);
+void fatal_nonfatal_warn (const char*, ...);
 
 #endif

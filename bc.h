@@ -5,6 +5,13 @@
 #ifndef BC_H
 #define BC_H
 
+#define BC_DEFAULT_o   "a.out"
+#define BC_DEFAULT_S   "a.s"
+#define BC_DEFAULT_T   30000
+#define BC_DEFAULT_C   1
+#define BC_DEFAULT_O   0
+#define BC_DEFAULT_d   100
+
 #define STREAM_GROWTH_FACTOR     128
 #define OPENLOOP_STACK_MAX_CAP   256
 #define CHECK_POINTER(ptr, a)    do { if (ptr) break; fatal_memory_ops(a); } while (0)
@@ -43,7 +50,7 @@ struct bc
 	{
 		unsigned int   offset;
 		unsigned int   tapeSize;
-		unsigned short display;
+		unsigned int   display;
 		unsigned char  cellSize;
 		char           *compile;
 		char           *output;

@@ -33,7 +33,9 @@ inline static void handle_dec32 (struct token*, struct Memory*);
 inline static void handle_add64 (struct token*, struct Memory*);
 inline static void handle_dec64 (struct token*, struct Memory*);
 
-void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode)
+static void do_memory_display (struct Memory*, const unsigned int, const unsigned int);
+
+void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode, const unsigned int offset, const unsigned int display)
 {
 	struct Memory mem = {
 		.at = 0,
@@ -63,6 +65,11 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 			case '>': handle_next(t, &mem); break;
 			case '<': handle_prev(t, &mem); break;
 		}
+	}
+
+	if (!safeMode)
+	{
+		do_memory_display(&mem, offset, display);
 	}
 }
 
@@ -174,4 +181,9 @@ inline static void handle_dec64 (struct token *t, struct Memory *mem)
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_DECS_UNDRFLOW, FATAL_ISNT_MULTIPLE);
 	}
 	*quad -= (unsigned long) t->groupSize;
+}
+
+static void do_memory_display (struct Memory *mem, const unsigned int offset, const unsigned int display)
+{
+	/* TODO */
 }
