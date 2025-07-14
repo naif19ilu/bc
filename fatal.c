@@ -53,7 +53,7 @@ void fatal_source_fatal (const char *context, const unsigned short numline, cons
 	fprintf(stderr, "  %-5d \x1b[5m%c\x1b[0m%.*s\n", numline, *context, show, context + 1);
 	fprintf(stderr, "        ~ offset: %d\n", offline);
 	
-	if (FATAL_IS_MULTIPLE) { fputc(10, stderr); }
+	if (ismul == FATAL_IS_MULTIPLE) { fputc(10, stderr); }
 	else { exit(EXIT_FAILURE); }
 }
 
