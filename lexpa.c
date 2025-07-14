@@ -64,8 +64,15 @@ void lexpa_run (const char *source, const size_t length, struct stream *stream, 
 		fatal_source_fatal(e->meta.context, e->meta.numline, e->meta.offline, FATAL_SRC_UNMATCHED_OPEN, FATAL_ISNT_MULTIPLE);
 		leave = true;
 	}
-
 	if (leave) exit(EXIT_FAILURE);
+
+
+	for (size_t i = 0; i < stream->length; i++)
+	{
+		struct token *e = &stream->stream[i];
+		printf("%c %d %d\n", e->meta.mnemonic, e->groupSize, e->parnerPosition);
+	}
+
 }
 
 static struct token *get_next_token (struct stream *stream)
