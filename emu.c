@@ -42,6 +42,7 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 		.safe     = safeMode
 	};
 
+
 	typedef void (*handlerfx_t) (struct token*, struct Memory*);
 	handlerfx_t inc, dec;
 
@@ -52,6 +53,7 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 		case 4: { mem.memory = (unsigned int*)   calloc(tapeSize, sizeof(unsigned int));   mem.max = UINT_MAX;  inc = handle_add32; dec = handle_dec32; break; }
 		case 8: { mem.memory = (unsigned long*)  calloc(tapeSize, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; break; }
 	}
+	printf("hey: %ld\n", mem.max);
 
 	for (size_t i = 0; i < stream->length; i++)
 	{
@@ -77,7 +79,8 @@ inline static void handle_next (struct token *t, struct Memory *mem)
 
 inline static void handle_prev (struct token *t, struct Memory *mem)
 {
-	if (mem->safe && ((((signed int) mem->at) - t->groupSize) < 0))
+	const signed long help = mem->at - t->groupSize;
+	if (mem->safe && (help < 0))
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_PREV_UNDRFLOW, FATAL_ISNT_MULTIPLE);
 	}
@@ -89,7 +92,7 @@ inline static void handle_add8 (struct token *t, struct Memory *mem)
 	unsigned char *byte = &(((unsigned char*) mem->memory)[mem->at]);
 	unsigned long a     = (unsigned long) *byte;
 
-	if (mem->safe && (a + (unsigned long) t->groupSize) > mem->max)
+	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
@@ -109,10 +112,11 @@ inline static void handle_dec8 (struct token *t, struct Memory *mem)
 inline static void handle_add16 (struct token *t, struct Memory *mem)
 {
 	unsigned short *word = &(((unsigned short*) mem->memory)[mem->at]);
-	unsigned long a     = (unsigned long) *word;
+	unsigned long a      = (unsigned long) *word;
 
-	if (mem->safe && (a + (unsigned long) t->groupSize) > mem->max)
+	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
+		printf(">>>> %lu\n", a + t->groupSize);
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
 	*word += mem->tapeSize;
@@ -134,7 +138,7 @@ inline static void handle_add32 (struct token *t, struct Memory *mem)
 	unsigned int *longg = &(((unsigned int*) mem->memory)[mem->at]);
 	unsigned long a     = (unsigned long) *longg;
 
-	if (mem->safe && (a + (unsigned long) t->groupSize) > mem->max)
+	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
@@ -157,7 +161,7 @@ inline static void handle_add64 (struct token *t, struct Memory *mem)
 	unsigned int *quad = &(((unsigned int*) mem->memory)[mem->at]);
 	unsigned long a     = (unsigned long) *quad;
 
-	if (mem->safe && (a + (unsigned long) t->groupSize) > mem->max)
+	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}

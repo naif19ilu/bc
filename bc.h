@@ -15,8 +15,8 @@
 struct token
 {
 	unsigned long ELFoffset;
-	short         parnerPosition;
-	short         groupSize;
+	unsigned long parnerPosition;
+	unsigned long groupSize;
 
 	struct
 	{
