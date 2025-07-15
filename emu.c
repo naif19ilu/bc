@@ -62,6 +62,8 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 		case 8: { mem.memory = (unsigned long*)  calloc(tapeSize, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; dis = display_64; break; }
 	}
 
+	CHECK_POINTER(mem.memory, "reserving space to emulate memory");
+
 	for (size_t i = 0; i < stream->length; i++)
 	{
 		struct token *t = &stream->stream[i];
@@ -71,13 +73,12 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 			case '-': dec(t, &mem);         break;
 			case '>': handle_next(t, &mem); break;
 			case '<': handle_prev(t, &mem); break;
+			case '@':
+				if (!safeMode) { dis(&mem, offset, display, group); puts(""); }
+				break;
 		}
 	}
 
-	if (!safeMode)
-	{
-		dis(&mem, offset, display, group);
-	}
 }
 
 inline static void handle_next (struct token *t, struct Memory *mem)
@@ -86,7 +87,8 @@ inline static void handle_next (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_NEXT_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	mem->at += t->groupSize;
+
+	mem->at += (int) t->groupSize;
 }
 
 inline static void handle_prev (struct token *t, struct Memory *mem)
@@ -108,7 +110,7 @@ inline static void handle_add8 (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*byte += mem->tapeSize;
+	*byte += (unsigned char) t->groupSize;
 }
 
 inline static void handle_dec8 (struct token *t, struct Memory *mem)
@@ -130,7 +132,7 @@ inline static void handle_add16 (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*word += mem->tapeSize;
+	*word += (unsigned short) mem->tapeSize;
 }
 
 inline static void handle_dec16 (struct token *t, struct Memory *mem)
@@ -164,19 +166,19 @@ inline static void handle_dec32 (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_DECS_UNDRFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*longg -= (unsigned int) t->groupSize;
+	*longg -= t->groupSize;
 }
 
 inline static void handle_add64 (struct token *t, struct Memory *mem)
 {
-	unsigned int *quad = &(((unsigned int*) mem->memory)[mem->at]);
-	unsigned long a     = (unsigned long) *quad;
+	unsigned int *quad = &(((unsigned long*) mem->memory)[mem->at]);
+	unsigned long a     = *quad;
 
 	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*quad += mem->tapeSize;
+	*quad += (unsigned long) mem->tapeSize;
 }
 
 inline static void handle_dec64 (struct token *t, struct Memory *mem)

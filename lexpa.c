@@ -49,7 +49,8 @@ void lexpa_lex_n_parse (const char *source, const size_t length, struct stream *
 			case '<':
 			case '>':
 			case ',':
-			case '.': { last = handle_accumulative(stream, source + i, numline, offline); break; }
+			case '.':
+			case '@': { last = handle_accumulative(stream, source + i, numline, offline); break; }
 			case '[': { handle_opening(&stack, stream, source + i, numline, offline); break; }
 			case ']': { handle_closing(&stack, stream, source + i, numline, offline); break; }
 			case 10 : { numline++; offline = 0; continue; }
