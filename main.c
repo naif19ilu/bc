@@ -86,7 +86,7 @@ int main (int argc, char **argv)
 
 	if (bc.args.emulate || bc.args.safeMode)
 	{
-		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode, bc.args.offset, bc.args.display);
+		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode, bc.args.offset, bc.args.display, bc.args.group);
 		return 0;
 	}
 	return 0;

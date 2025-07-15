@@ -33,13 +33,13 @@ inline static void handle_dec32 (struct token*, struct Memory*);
 inline static void handle_add64 (struct token*, struct Memory*);
 inline static void handle_dec64 (struct token*, struct Memory*);
 
-static void display_8  (struct Memory*, const unsigned int, const unsigned int);
-static void display_16 (struct Memory*, const unsigned int, const unsigned int);
+static void display_8  (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
+static void display_16 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 
-static void display_32 (struct Memory*, const unsigned int, const unsigned int);
-static void display_64 (struct Memory*, const unsigned int, const unsigned int);
+static void display_32 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
+static void display_64 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 
-void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode, const unsigned int offset, const unsigned int display)
+void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode, const unsigned int offset, const unsigned int display, const unsigned int group)
 {
 	struct Memory mem = {
 		.at = 0,
@@ -49,7 +49,7 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 	};
 
 	typedef void (*incdec_t) (struct token*, struct Memory*);
-	typedef void (*display_t) (struct Memory*, const unsigned int, const unsigned int);
+	typedef void (*display_t) (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 
 	incdec_t inc, dec;
 	display_t dis;
@@ -76,7 +76,7 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 
 	if (!safeMode)
 	{
-		dis(&mem, offset, display);
+		dis(&mem, offset, display, group);
 	}
 }
 
@@ -190,11 +190,11 @@ inline static void handle_dec64 (struct token *t, struct Memory *mem)
 	*quad -= (unsigned long) t->groupSize;
 }
 
-static void display_8  (struct Memory *mem, const unsigned int off, const unsigned int dis)
+static void display_8  (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
 	for (unsigned int i = off; i < dis + off; i++)
 	{
-		if ((i % 10) == 0 && i)
+		if ((i % group) == 0 && i)
 		{
 			putchar(10);
 		}
@@ -203,11 +203,11 @@ static void display_8  (struct Memory *mem, const unsigned int off, const unsign
 	putchar(10);
 }
 
-static void display_16 (struct Memory *mem, const unsigned int off, const unsigned int dis)
+static void display_16 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
 	for (unsigned int i = off; i < dis + off; i++)
 	{
-		if ((i % 10) == 0 && i)
+		if ((i % group) == 0 && i)
 		{
 			putchar(10);
 		}
@@ -216,11 +216,11 @@ static void display_16 (struct Memory *mem, const unsigned int off, const unsign
 	putchar(10);
 }
 
-static void display_32 (struct Memory *mem, const unsigned int off, const unsigned int dis)
+static void display_32 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
 	for (unsigned int i = off; i < dis + off; i++)
 	{
-		if ((i % 10) == 0 && i)
+		if ((i % group) == 0 && i)
 		{
 			putchar(10);
 		}
@@ -229,11 +229,11 @@ static void display_32 (struct Memory *mem, const unsigned int off, const unsign
 	putchar(10);
 }
 
-static void display_64 (struct Memory *mem, const unsigned int off, const unsigned int dis)
+static void display_64 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
 	for (unsigned int i = off; i < dis + off; i++)
 	{
-		if ((i % 10) == 0 && i)
+		if ((i % group) == 0 && i)
 		{
 			putchar(10);
 		}
