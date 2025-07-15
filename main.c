@@ -96,12 +96,12 @@ static void check_arguments (struct bc *bc)
 
 	if ((cellkeyMask & (1 << bc->args.cellSize)) == 0)
 	{
-		fatal_nonfatal_warn("invalid argument for -C (%d), it can only be 1,2,4 or 8; setting to default (%d)\n", bc->args.cellSize, BC_DEFAULT_C);
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_C, bc->args.cellSize, BC_DEFAULT_C);
 		bc->args.cellSize = BC_DEFAULT_C;
 	}
 	if (bc->args.tapeSize < 30000)
 	{
-		fatal_nonfatal_warn("invalid argument for -T (%d), it must be greater than 30000; setting to default (%d)\n", bc->args.tapeSize, BC_DEFAULT_T);
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_T, bc->args.tapeSize, BC_DEFAULT_T);
 		bc->args.tapeSize = BC_DEFAULT_T;
 	}
 
@@ -112,19 +112,19 @@ static void check_arguments (struct bc *bc)
 
 	if (bc->args.offset > bc->args.tapeSize)
 	{
-		fatal_nonfatal_warn("invalid values for -O (%d) and -T (%d), -T must be greater than -O; setting both to default\n", bc->args.offset, bc->args.tapeSize);
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_OT, bc->args.offset, bc->args.tapeSize);
 		bc->args.tapeSize = BC_DEFAULT_T;
 		bc->args.offset   = BC_DEFAULT_O;
 	}
 	if (bc->args.display > bc->args.tapeSize || ((bc->args.display + bc->args.offset) > bc->args.tapeSize))
 	{
-		fatal_nonfatal_warn("invalid values for -d (%d) and -T (%d), -T must be greater than -d; setting both to default\n", bc->args.display, bc->args.tapeSize);
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_dT, bc->args.display, bc->args.tapeSize);
 		bc->args.tapeSize = BC_DEFAULT_T;
 		bc->args.display  = BC_DEFAULT_d;
 	}
 	if (bc->args.group == 0)
 	{
-		fatal_nonfatal_warn("invalid value for -g (%d), cannot be zero; setting to default (%d)\n", bc->args.group, BC_DEFAULT_g);
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_g, bc->args.group, BC_DEFAULT_g);
 		bc->args.group  = BC_DEFAULT_g;
 	}
 }

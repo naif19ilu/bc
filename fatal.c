@@ -71,11 +71,20 @@ static unsigned short get_proper_context (const char *cx)
 	return i;
 }
 
-void fatal_nonfatal_warn (const char *fmt, ...)
+void fatal_nonfatal_warn (const enum FatalWarningKind kind, ...)
 {
+	static const char *const reasons[] =
+	{
+		"invalid argument for -C (%d), it can only be 1,2,4 or 8; setting to default (%d)\n\n",
+		"invalid argument for -T (%d), it must be greater than 30000; setting to default (%d)\n\n",
+		"invalid values for -O (%d) and -T (%d), -T must be greater than -O; setting both to default\n\n",
+		"invalid values for -d (%d) and -T (%d) (or maybe -T < -d + -O which is not possible), -T must be greater than -d; setting both to default\n\n",
+		"invalid value for -g (%d), cannot be zero; setting to default (%d)\n\n"
+	};
+
 	va_list args;
-	va_start(args, fmt);
+	va_start(args, kind);
 	fprintf(stdout, "bc:\x1b[33mwarning:\x1b[0m hey! non fatal but be aware of it!\n");
-	vfprintf(stdout, fmt, args);
+	vfprintf(stdout, reasons[kind], args);
 	va_end(args);
 }

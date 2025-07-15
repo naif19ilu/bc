@@ -25,10 +25,19 @@ enum FatalIsMultiple
 	FATAL_ISNT_MULTIPLE,
 };
 
+enum FatalWarningKind
+{
+	FATAL_WARN_INVALID_C = 0,
+	FATAL_WARN_INVALID_T,
+	FATAL_WARN_INVALID_OT,
+	FATAL_WARN_INVALID_dT,
+	FATAL_WARN_INVALID_g,
+};
+
 void fatal_file_ops (const char*);
 void fatal_memory_ops (const char*);
 
 void fatal_source_fatal (const char*, const unsigned short, const unsigned short, const enum FatalSourceKind, const enum FatalIsMultiple);
-void fatal_nonfatal_warn (const char*, ...);
+void fatal_nonfatal_warn (const enum FatalWarningKind, ...);
 
 #endif

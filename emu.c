@@ -33,11 +33,11 @@ inline static void handle_dec32 (struct token*, struct Memory*);
 inline static void handle_add64 (struct token*, struct Memory*);
 inline static void handle_dec64 (struct token*, struct Memory*);
 
-static void display_8  (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
-static void display_16 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
+inline static void display_8  (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
+inline static void display_16 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 
-static void display_32 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
-static void display_64 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
+inline static void display_32 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
+inline static void display_64 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 
 void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode, const unsigned int offset, const unsigned int display, const unsigned int group)
 {
@@ -74,11 +74,21 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 			case '>': handle_next(t, &mem); break;
 			case '<': handle_prev(t, &mem); break;
 			case '@':
-				if (!safeMode) { dis(&mem, offset, display, group); puts(""); }
+			{
+				if (safeMode) continue;
+				printf("debbug at %ld chunk-instruction from %d cell:\n", i - 1, offset);
+
+				dis(&mem, offset, display, group);
+				printf("\n\n");
 				break;
+			}
 		}
 	}
 
+	if (safeMode)
+	{
+		puts("All is within bounds :) good job!");
+	}
 }
 
 inline static void handle_next (struct token *t, struct Memory *mem)
@@ -87,8 +97,7 @@ inline static void handle_next (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_NEXT_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-
-	mem->at += (int) t->groupSize;
+	mem->at += (unsigned int) t->groupSize;
 }
 
 inline static void handle_prev (struct token *t, struct Memory *mem)
@@ -98,7 +107,7 @@ inline static void handle_prev (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_PREV_UNDRFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	mem->at -= t->groupSize;
+	mem->at -= (unsigned int) t->groupSize;
 }
 
 inline static void handle_add8 (struct token *t, struct Memory *mem)
@@ -192,54 +201,50 @@ inline static void handle_dec64 (struct token *t, struct Memory *mem)
 	*quad -= (unsigned long) t->groupSize;
 }
 
-static void display_8  (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
+inline static void display_8  (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
-	for (unsigned int i = off; i < dis + off; i++)
+	for (unsigned int i = off, j = 0; i < dis + off; j++)
 	{
-		if ((i % group) == 0 && i)
+		if ((j % group) == 0 && j)
 		{
 			putchar(10);
 		}
-		printf("  0x%.2x", ((unsigned char*) mem->memory)[i]);
+		printf("  0x%.2x", ((unsigned char*) mem->memory)[i++]);
 	}
-	putchar(10);
 }
 
-static void display_16 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
+inline static void display_16 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
-	for (unsigned int i = off; i < dis + off; i++)
+	for (unsigned int i = off, j = 0; i < dis + off; j++)
 	{
-		if ((i % group) == 0 && i)
+		if ((j % group) == 0 && j)
 		{
 			putchar(10);
 		}
-		printf("  0x%.4x", ((unsigned short*) mem->memory)[i]);
+		printf("  0x%.4x", ((unsigned short*) mem->memory)[i++]);
 	}
-	putchar(10);
 }
 
-static void display_32 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
+inline static void display_32 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
-	for (unsigned int i = off; i < dis + off; i++)
+	for (unsigned int i = off, j = 0; i < dis + off; j++)
 	{
-		if ((i % group) == 0 && i)
+		if ((j % group) == 0 && j)
 		{
 			putchar(10);
 		}
-		printf("  0x%.8x", ((unsigned int*) mem->memory)[i]);
+		printf("  0x%.8x", ((unsigned int*) mem->memory)[i++]);
 	}
-	putchar(10);
 }
 
-static void display_64 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
+inline static void display_64 (struct Memory *mem, const unsigned int off, const unsigned int dis, const unsigned int group)
 {
-	for (unsigned int i = off; i < dis + off; i++)
+	for (unsigned int i = off, j = 0; i < dis + off; j++)
 	{
-		if ((i % group) == 0 && i)
+		if ((j % group) == 0 && j)
 		{
 			putchar(10);
 		}
-		printf("  0x%.16lx", ((unsigned long*) mem->memory)[i]);
+		printf("  0x%.16lx", ((unsigned long*) mem->memory)[i++]);
 	}
-	putchar(10);
 }
