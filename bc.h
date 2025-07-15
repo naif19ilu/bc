@@ -11,6 +11,7 @@
 #define BC_DEFAULT_C   1
 #define BC_DEFAULT_O   0
 #define BC_DEFAULT_d   100
+#define BC_DEFAULT_g   10
 
 #define STREAM_GROWTH_FACTOR     128
 #define OPENLOOP_STACK_MAX_CAP   256
@@ -51,6 +52,7 @@ struct bc
 		unsigned int   offset;
 		unsigned int   tapeSize;
 		unsigned int   display;
+		unsigned int   group;
 		unsigned char  cellSize;
 		char           *compile;
 		char           *output;

@@ -33,7 +33,11 @@ inline static void handle_dec32 (struct token*, struct Memory*);
 inline static void handle_add64 (struct token*, struct Memory*);
 inline static void handle_dec64 (struct token*, struct Memory*);
 
-static void do_memory_display (struct Memory*, const unsigned int, const unsigned int);
+static void display_8  (struct Memory*, const unsigned int, const unsigned int);
+static void display_16 (struct Memory*, const unsigned int, const unsigned int);
+
+static void display_32 (struct Memory*, const unsigned int, const unsigned int);
+static void display_64 (struct Memory*, const unsigned int, const unsigned int);
 
 void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode, const unsigned int offset, const unsigned int display)
 {
@@ -44,15 +48,18 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 		.safe     = safeMode
 	};
 
-	typedef void (*handlerfx_t) (struct token*, struct Memory*);
-	handlerfx_t inc, dec;
+	typedef void (*incdec_t) (struct token*, struct Memory*);
+	typedef void (*display_t) (struct Memory*, const unsigned int, const unsigned int);
+
+	incdec_t inc, dec;
+	display_t dis;
 
 	switch (cellSize)
 	{
-		case 1: { mem.memory = (unsigned char*)  calloc(tapeSize, sizeof(unsigned char));  mem.max = UCHAR_MAX; inc = handle_add8 ; dec = handle_dec8 ; break; }
-		case 2: { mem.memory = (unsigned short*) calloc(tapeSize, sizeof(unsigned short)); mem.max = USHRT_MAX; inc = handle_add16; dec = handle_dec16; break; }
-		case 4: { mem.memory = (unsigned int*)   calloc(tapeSize, sizeof(unsigned int));   mem.max = UINT_MAX;  inc = handle_add32; dec = handle_dec32; break; }
-		case 8: { mem.memory = (unsigned long*)  calloc(tapeSize, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; break; }
+		case 1: { mem.memory = (unsigned char*)  calloc(tapeSize, sizeof(unsigned char));  mem.max = UCHAR_MAX; inc = handle_add8 ; dec = handle_dec8 ; dis = display_8 ; break; }
+		case 2: { mem.memory = (unsigned short*) calloc(tapeSize, sizeof(unsigned short)); mem.max = USHRT_MAX; inc = handle_add16; dec = handle_dec16; dis = display_16; break; }
+		case 4: { mem.memory = (unsigned int*)   calloc(tapeSize, sizeof(unsigned int));   mem.max = UINT_MAX;  inc = handle_add32; dec = handle_dec32; dis = display_32; break; }
+		case 8: { mem.memory = (unsigned long*)  calloc(tapeSize, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; dis = display_64; break; }
 	}
 
 	for (size_t i = 0; i < stream->length; i++)
@@ -69,7 +76,7 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 
 	if (!safeMode)
 	{
-		do_memory_display(&mem, offset, display);
+		dis(&mem, offset, display);
 	}
 }
 
@@ -183,7 +190,54 @@ inline static void handle_dec64 (struct token *t, struct Memory *mem)
 	*quad -= (unsigned long) t->groupSize;
 }
 
-static void do_memory_display (struct Memory *mem, const unsigned int offset, const unsigned int display)
+static void display_8  (struct Memory *mem, const unsigned int off, const unsigned int dis)
 {
-	/* TODO */
+	for (unsigned int i = off; i < dis + off; i++)
+	{
+		if ((i % 10) == 0 && i)
+		{
+			putchar(10);
+		}
+		printf("  0x%.2x", ((unsigned char*) mem->memory)[i]);
+	}
+	putchar(10);
+}
+
+static void display_16 (struct Memory *mem, const unsigned int off, const unsigned int dis)
+{
+	for (unsigned int i = off; i < dis + off; i++)
+	{
+		if ((i % 10) == 0 && i)
+		{
+			putchar(10);
+		}
+		printf("  0x%.4x", ((unsigned short*) mem->memory)[i]);
+	}
+	putchar(10);
+}
+
+static void display_32 (struct Memory *mem, const unsigned int off, const unsigned int dis)
+{
+	for (unsigned int i = off; i < dis + off; i++)
+	{
+		if ((i % 10) == 0 && i)
+		{
+			putchar(10);
+		}
+		printf("  0x%.8x", ((unsigned int*) mem->memory)[i]);
+	}
+	putchar(10);
+}
+
+static void display_64 (struct Memory *mem, const unsigned int off, const unsigned int dis)
+{
+	for (unsigned int i = off; i < dis + off; i++)
+	{
+		if ((i % 10) == 0 && i)
+		{
+			putchar(10);
+		}
+		printf("  0x%.16lx", ((unsigned long*) mem->memory)[i]);
+	}
+	putchar(10);
 }
