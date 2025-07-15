@@ -132,7 +132,7 @@ inline static void handle_add16 (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*word += (unsigned short) mem->tapeSize;
+	*word += (unsigned short) t->groupSize;
 }
 
 inline static void handle_dec16 (struct token *t, struct Memory *mem)
@@ -155,7 +155,7 @@ inline static void handle_add32 (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*longg += mem->tapeSize;
+	*longg += (unsigned int) t->groupSize;
 }
 
 inline static void handle_dec32 (struct token *t, struct Memory *mem)
@@ -166,19 +166,19 @@ inline static void handle_dec32 (struct token *t, struct Memory *mem)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_DECS_UNDRFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*longg -= t->groupSize;
+	*longg -= (unsigned int) t->groupSize;
 }
 
 inline static void handle_add64 (struct token *t, struct Memory *mem)
 {
-	unsigned int *quad = &(((unsigned long*) mem->memory)[mem->at]);
+	unsigned long *quad = &(((unsigned long*) mem->memory)[mem->at]);
 	unsigned long a     = *quad;
 
 	if (mem->safe && (a + t->groupSize) > mem->max)
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_INCS_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}
-	*quad += (unsigned long) mem->tapeSize;
+	*quad += (unsigned long) t->groupSize;
 }
 
 inline static void handle_dec64 (struct token *t, struct Memory *mem)

@@ -1,5 +1,4 @@
 
-
 	Program's flags:
 
 	-c or --compile  <filename>
@@ -30,7 +29,6 @@
 
 	-E or --emu-mem
 	inspect memory at @ locations (debug-mode)
-	~ note: overwrites -s
 
 	-O or --offset <number>
 	memory offset to start display from (only if -E is active)
@@ -43,5 +41,4 @@
 	-g or --group <number>
 	number of memory cells per row/line in display (only if -E is active)
 	~ default: 10
-
 

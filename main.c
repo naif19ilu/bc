@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 static size_t read_file (const char*, char**);
+static void check_arguments (struct bc*);
 
 int main (int argc, char **argv)
 {
@@ -51,35 +52,7 @@ int main (int argc, char **argv)
 
 	bc.args.safeMode = flags[6].meta & CXA_FLAG_SEEN_MASK;
 	bc.args.emulate  = flags[7].meta & CXA_FLAG_SEEN_MASK;
-
-	if (bc.args.cellSize != 1 && bc.args.cellSize != 2 && bc.args.cellSize != 4 && bc.args.cellSize != 8)
-	{
-		fatal_nonfatal_warn("invalid argument for -C (%d), it can only be 1,2,4 or 8; setting to default (%d)\n", bc.args.cellSize, BC_DEFAULT_C);
-		bc.args.cellSize = BC_DEFAULT_C;
-	}
-	if (bc.args.tapeSize < 30000)
-	{
-		fatal_nonfatal_warn("invalid argument for -T (%d), it must be greater than 30000; setting to default (%d)\n", bc.args.tapeSize, BC_DEFAULT_T);
-		bc.args.tapeSize = BC_DEFAULT_T;
-	}
-	if (bc.args.offset > bc.args.tapeSize)
-	{
-		fatal_nonfatal_warn("invalid values for -O (%d) and -T (%d), -T must be greater than -O; setting both to default\n", bc.args.offset, bc.args.tapeSize);
-		bc.args.tapeSize = BC_DEFAULT_T;
-		bc.args.offset   = BC_DEFAULT_O;
-	}
-	if (bc.args.display > bc.args.tapeSize || ((bc.args.display + bc.args.offset) > bc.args.tapeSize))
-	{
-		fatal_nonfatal_warn("invalid values for -d (%d) and -T (%d), -T must be greater than -d; setting both to default\n", bc.args.display, bc.args.tapeSize);
-		bc.args.tapeSize = BC_DEFAULT_T;
-		bc.args.display  = BC_DEFAULT_d;
-	}
-	if (bc.args.group == 0)
-	{
-		fatal_nonfatal_warn("invalid value for -g (%d), cannot be zero; setting to default (%d)\n", bc.args.group, BC_DEFAULT_g);
-		bc.args.tapeSize = BC_DEFAULT_T;
-		bc.args.display  = BC_DEFAULT_d;
-	}
+	check_arguments(&bc);
 
 	bc.length = read_file(bc.args.compile, &bc.source);
 	lexpa_lex_n_parse(bc.source, bc.length, &bc.stream);
@@ -115,4 +88,43 @@ static size_t read_file (const char *filename, char **source)
 
 	fclose(file);
 	return size;
+}
+
+static void check_arguments (struct bc *bc)
+{
+	static const unsigned short cellkeyMask = ((1 << 1) | (1 << 2) | (1 << 4) | (1 << 8));
+
+	if ((cellkeyMask & (1 << bc->args.cellSize)) == 0)
+	{
+		fatal_nonfatal_warn("invalid argument for -C (%d), it can only be 1,2,4 or 8; setting to default (%d)\n", bc->args.cellSize, BC_DEFAULT_C);
+		bc->args.cellSize = BC_DEFAULT_C;
+	}
+	if (bc->args.tapeSize < 30000)
+	{
+		fatal_nonfatal_warn("invalid argument for -T (%d), it must be greater than 30000; setting to default (%d)\n", bc->args.tapeSize, BC_DEFAULT_T);
+		bc->args.tapeSize = BC_DEFAULT_T;
+	}
+
+	if (bc->args.safeMode)
+	{
+		return;
+	}
+
+	if (bc->args.offset > bc->args.tapeSize)
+	{
+		fatal_nonfatal_warn("invalid values for -O (%d) and -T (%d), -T must be greater than -O; setting both to default\n", bc->args.offset, bc->args.tapeSize);
+		bc->args.tapeSize = BC_DEFAULT_T;
+		bc->args.offset   = BC_DEFAULT_O;
+	}
+	if (bc->args.display > bc->args.tapeSize || ((bc->args.display + bc->args.offset) > bc->args.tapeSize))
+	{
+		fatal_nonfatal_warn("invalid values for -d (%d) and -T (%d), -T must be greater than -d; setting both to default\n", bc->args.display, bc->args.tapeSize);
+		bc->args.tapeSize = BC_DEFAULT_T;
+		bc->args.display  = BC_DEFAULT_d;
+	}
+	if (bc->args.group == 0)
+	{
+		fatal_nonfatal_warn("invalid value for -g (%d), cannot be zero; setting to default (%d)\n", bc->args.group, BC_DEFAULT_g);
+		bc->args.group  = BC_DEFAULT_g;
+	}
 }
