@@ -288,7 +288,7 @@ static void handle_long_flag (struct CxaFlag *flags, const char *given)
 
 static void check_flag_has_its_arg (void)
 {
-	if (LastSeen && (LastSeen->meta & CXA_FLAG_ARG_GIVEN_MASK) == CXA_FLAG_ARG_GIVEN_NON)
+	if (LastSeen && (LastSeen->meta & CXA_FLAG_ARG_GIVEN_MASK) == CXA_FLAG_ARG_GIVEN_YES)
 	{
 		error_missing_argument(LastSeen->longname, LastSeen->shortname, LastSeen->meta);
 	}

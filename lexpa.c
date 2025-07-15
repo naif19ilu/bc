@@ -123,7 +123,6 @@ static void handle_closing (struct openLoopStack *stack, struct stream *stream, 
 	struct token* open    = stack->stack[--stack->at];
 
 	close->parnerPosition = open->parnerPosition;
-	open->parnerPosition  = stream->length - 1;
 
 	close->groupSize      = 1;
 	close->meta.numline   = numline;
