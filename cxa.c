@@ -292,6 +292,7 @@ static void check_flag_has_its_arg (void)
 	{
 		error_missing_argument(LastSeen->longname, LastSeen->shortname, LastSeen->meta);
 	}
+	LastSeen = NULL;
 }
 
 static void handle_freeword (const char *word, struct Cxa *cxa)

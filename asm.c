@@ -8,6 +8,7 @@
 inline static void produce_input_syscall (FILE*, const unsigned long);
 inline static void produce_output_syscall (FILE*, const unsigned long);
 
+inline static void produce_loop_opening (FILE*, const unsigned long, const char);
 inline static void produce_loop_closing (FILE*, const unsigned long, const char);
 
 void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned int cellSize)
@@ -47,7 +48,7 @@ void asm_gen_asm (const struct stream *stream, const char *filename, const unsig
 			case '<': fprintf(file, "\tsubq\t$%ld, %%r8\n",            t->groupSize); break;
 			case ',': produce_input_syscall(file, t->groupSize);                      break;
 			case '.': produce_output_syscall(file, t->groupSize);                     break;
-			case '[': fprintf(file, "LB%ld:\n", t->parnerPosition);                   break;
+			case '[': produce_loop_opening(file, t->parnerPosition, prefix);          break;
 			case ']': produce_loop_closing(file, t->parnerPosition, prefix);          break;
 		}
 	}
@@ -89,15 +90,16 @@ inline static void produce_output_syscall (FILE *file, const unsigned long times
 	}
 }
 
-inline static void produce_loop_closing (FILE *file, const unsigned long branch, const char prefix)
+inline static void produce_loop_opening (FILE *file, const unsigned long branch, const char prefix)
 {
 	if (prefix == 'q')
 	{
 		static const char *const template =
 			"\tmovq\t(%r8), %r9\n"
 			"\tcmpq\t$0, %r9\n"
-			"\tjne\tLB%ld\n";
-		fprintf(file, template, branch);
+			"\tje\tLE%ld\n"
+			"LB%ld:\n";
+		fprintf(file, template, branch, branch);
 		return;
 	}
 
@@ -105,10 +107,19 @@ inline static void produce_loop_closing (FILE *file, const unsigned long branch,
 	if (prefix == 'l') { regprefx = 'd'; }
 
 	static const char *const template =
+		"LB%ld:\n"
 		"\tmovzbl\t(%r8), %r9d\n"
 		"\tcmp%c\t$0, %r9%c\n"
-		"\tjne\tLB%ld\n";
+		"\tje\tLE%ld\n";
 
-	fprintf(file, template, prefix, regprefx, branch);
+	fprintf(file, template, branch, prefix, regprefx, branch);
 	return;
+}
+
+inline static void produce_loop_closing (FILE *file, const unsigned long branch, const char prefix)
+{
+	static const char *const template =
+		"\tjmp\tLB%d\n"
+		"LE%d:\n";
+	fprintf(file, template, branch, branch);
 }
