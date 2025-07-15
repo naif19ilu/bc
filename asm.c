@@ -101,17 +101,12 @@ inline static void produce_loop_closing (FILE *file, const unsigned long branch,
 		return;
 	}
 
-	char regprefx;
-	switch (prefix)
-	{
-		case 1: regprefx = 'b'; break;
-		case 2: regprefx = 'w'; break;
-		case 4: regprefx = 'd'; break;
-	}
+	char regprefx = prefix;
+	if (prefix == 'l') { regprefx = 'd'; }
 
 	static const char *const template =
-		"\tmovzbl\t(%r8), %r9\n"
-		"\tcmp%d\t$0, %r9%c\n"
+		"\tmovzbl\t(%r8), %r9d\n"
+		"\tcmp%c\t$0, %r9%c\n"
 		"\tjne\tLB%ld\n";
 
 	fprintf(file, template, prefix, regprefx, branch);

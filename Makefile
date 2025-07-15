@@ -14,5 +14,8 @@ $(final): $(objs)
 	cc	-o $(final) $(objs)
 %.o: %.c
 	cc	-c $< $(flags)
+asm:
+	as	a.s
+	ld	a.out -o asm
 clear:
-	rm	-rf $(objs) $(final)
+	rm	-rf $(objs) $(final) a.s a.out asm
