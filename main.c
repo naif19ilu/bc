@@ -2,6 +2,7 @@
  * Jul 13, 2025
  * Main file
  */
+#include "asm.h"
 #include "emu.h"
 #include "cxa.h"
 #include "fatal.h"
@@ -62,6 +63,12 @@ int main (int argc, char **argv)
 		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode, bc.args.offset, bc.args.display, bc.args.group);
 		return 0;
 	}
+
+	if (flags[2].meta & CXA_FLAG_SEEN_MASK)
+	{
+		asm_gen_asm(&bc.stream, bc.args.source, bc.args.tapeSize, bc.args.cellSize);
+	}
+
 	return 0;
 }
 
