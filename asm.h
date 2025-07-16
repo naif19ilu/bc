@@ -6,6 +6,6 @@
 #define BC_ASM_H
 #include "bc.h"
 
-void asm_gen_asm (const struct stream*, const char*, const unsigned int, const unsigned char);
+void asm_gen_asm (const struct stream*, const char*, const unsigned int, const unsigned char, const enum arch);
 
 #endif

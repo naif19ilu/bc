@@ -12,61 +12,38 @@ struct asmgen
 	char x64prefix;
 };
 
-static const char *const Header =
+static const char *const Headers[] =
+{
 	".section .bss\n"
 	"\tmemory: .zero %ld\n"
 	".section .text\n"
 	".globl _start\n"
 	"_start:\n"
 	"\tleaq\tmemory(%rip), %rax\n"
-	"\tmovq\t%rax, %r8\n";
+	"\tmovq\t%rax, %r8\n",
+};
 
-static const char *const Footer =
+static const char *const Footers[] =
+{
 	"\tmovq\t$60, %rax\n"
 	"\tmovq\t$0, %rdi\n"
-	"\tsyscall\n";
+	"\tsyscall\n",
 
-static void get_x64_prefixes (struct asmgen*, const unsigned char);
-inline static void x64_emmit_inc (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_dec (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_nxt (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_prv (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_out (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_inp (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_lbr (const struct asmgen*, const unsigned long);
-inline static void x64_emmit_rbr (const struct asmgen*, const unsigned long);
-
-void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize)
-{
-	struct asmgen asmg = { .file = fopen(filename, "w") };
-	if (!asmg.file)
-	{
-		fatal_file_ops(filename);
-	}
-
-	get_x64_prefixes(&asmg, cellSize);
-	fprintf(asmg.file, Header, (unsigned long) (tapeSize * cellSize));
-
-	for (size_t i = 0; i < stream->length; i++)
-	{
-		const struct token *token = &stream->stream[i];
-		switch (token->meta.mnemonic)
-		{
-			case '+': x64_emmit_inc(&asmg, token->groupSize);      break;
-			case '-': x64_emmit_dec(&asmg, token->groupSize);      break;
-			case '>': x64_emmit_nxt(&asmg, token->groupSize);      break;
-			case '<': x64_emmit_prv(&asmg, token->groupSize);      break;
-			case '.': x64_emmit_out(&asmg, token->groupSize);      break;
-			case ',': x64_emmit_inp(&asmg, token->groupSize);      break;
-			case '[': x64_emmit_lbr(&asmg, token->parnerPosition); break;
-			case ']': x64_emmit_rbr(&asmg, token->parnerPosition); break;
-		}
-	}
-
-	fprintf(asmg.file, "%s", Footer);
-	fclose(asmg.file);
 }
 
+/*  ________________________________________
+ * < all this is for AMD64 code generation! >
+ *  ----------------------------------------
+ *    \
+ *     \
+ *         .--.
+ *        |o_o |
+ *        |:_/ |
+ *       //   \ \
+ *      (|     | )
+ *     /'\_   _/`\
+ *     \___)=(___/
+ */
 static void get_x64_prefixes (struct asmgen *asmg, const unsigned char cellSize)
 {
 	switch (cellSize)
@@ -142,4 +119,35 @@ inline static void x64_emmit_rbr (const struct asmgen *asmg, const unsigned long
 		"\tjmp\tLB%ld\n"
 		"LE%ld:\n";
 	fprintf(asmg->file, template, branch, branch);
+}
+
+void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
+{
+	struct asmgen asmg = { .file = fopen(filename, "w") };
+	if (!asmg.file)
+	{
+		fatal_file_ops(filename);
+	}
+
+	get_x64_prefixes(&asmg, cellSize);
+	fprintf(asmg.file, Header, (unsigned long) (tapeSize * cellSize));
+
+	for (size_t i = 0; i < stream->length; i++)
+	{
+		const struct token *token = &stream->stream[i];
+		switch (token->meta.mnemonic)
+		{
+			case '+': x64_emmit_inc(&asmg, token->groupSize);      break;
+			case '-': x64_emmit_dec(&asmg, token->groupSize);      break;
+			case '>': x64_emmit_nxt(&asmg, token->groupSize);      break;
+			case '<': x64_emmit_prv(&asmg, token->groupSize);      break;
+			case '.': x64_emmit_out(&asmg, token->groupSize);      break;
+			case ',': x64_emmit_inp(&asmg, token->groupSize);      break;
+			case '[': x64_emmit_lbr(&asmg, token->parnerPosition); break;
+			case ']': x64_emmit_rbr(&asmg, token->parnerPosition); break;
+		}
+	}
+
+	fprintf(asmg.file, "%s", Footer);
+	fclose(asmg.file);
 }

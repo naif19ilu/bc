@@ -20,6 +20,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+enum arch
+{
+	ARCH_AMD64,
+	ARCH_ARM64,
+};
+
 struct token
 {
 	unsigned long ELFoffset;
@@ -60,6 +66,7 @@ struct bc
 		bool           safeMode;
 		bool           emulate;
 	} args;
+	enum arch arch;
 };
 
 #endif
