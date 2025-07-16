@@ -5,78 +5,100 @@
 #include "asm.h"
 #include "fatal.h"
 
-inline static void produce_input_syscall (FILE*, const unsigned long);
-inline static void produce_output_syscall (FILE*, const unsigned long);
-
-inline static void produce_loop_opening (FILE*, const unsigned long, const char);
-inline static void produce_loop_closing (FILE*, const unsigned long, const char);
-
-void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned int cellSize)
+struct asmgen
 {
-	FILE *file = fopen(filename, "w");
-	if (!file)
+	FILE *file;
+	char *x64regName;
+	char x64prefix;
+};
+
+static const char *const Header =
+	".section .bss\n"
+	"\tmemory: .zero %ld\n"
+	".section .text\n"
+	".globl _start\n"
+	"_start:\n"
+	"\tleaq\tmemory(%rip), %rax\n"
+	"\tmovq\t%rax, %r8\n";
+
+static const char *const Footer =
+	"\tmovq\t$60, %rax\n"
+	"\tmovq\t$0, %rdi\n"
+	"\tsyscall\n";
+
+static void get_x64_prefixes (struct asmgen*, const unsigned char);
+inline static void x64_emmit_inc (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_dec (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_nxt (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_prv (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_out (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_inp (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_lbr (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_rbr (const struct asmgen*, const unsigned long);
+
+void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize)
+{
+	struct asmgen asmg = { .file = fopen(filename, "w") };
+	if (!asmg.file)
 	{
 		fatal_file_ops(filename);
 	}
 
-	char prefix = 'b';
-	switch (cellSize)
-	{
-		case 2: prefix = 'w'; break;
-		case 4: prefix = 'l'; break;
-		case 8: prefix = 'q'; break;
-	}
-
-	static const char *const template =
-		".section .text\n"
-		".globl _start\n"
-		"_start:\n"
-		"\tpushq\t%rbp\n"
-		"\tmovq\t%rsp, %rbp\n"
-		"\tsubq\t$%d, %rsp\n"
-		"\tleaq\t(%rbp), %r8\n";
-	fprintf(file, template, tapeSize * cellSize);
+	get_x64_prefixes(&asmg, cellSize);
+	fprintf(asmg.file, Header, (unsigned long) (tapeSize * cellSize));
 
 	for (size_t i = 0; i < stream->length; i++)
 	{
-		const struct token *t = &stream->stream[i];
-		switch (t->meta.mnemonic)
+		const struct token *token = &stream->stream[i];
+		switch (token->meta.mnemonic)
 		{
-			case '+': fprintf(file, "\tadd%c\t$%ld, (%%r8)\n", prefix, t->groupSize); break;
-			case '-': fprintf(file, "\tsub%c\t$%ld, (%%r8)\n", prefix, t->groupSize); break;
-			case '>': fprintf(file, "\taddq\t$%ld, %%r8\n",            t->groupSize); break;
-			case '<': fprintf(file, "\tsubq\t$%ld, %%r8\n",            t->groupSize); break;
-			case ',': produce_input_syscall(file, t->groupSize);                      break;
-			case '.': produce_output_syscall(file, t->groupSize);                     break;
-			case '[': produce_loop_opening(file, t->parnerPosition, prefix);          break;
-			case ']': produce_loop_closing(file, t->parnerPosition, prefix);          break;
+			case '+': x64_emmit_inc(&asmg, token->groupSize);      break;
+			case '-': x64_emmit_dec(&asmg, token->groupSize);      break;
+			case '>': x64_emmit_nxt(&asmg, token->groupSize);      break;
+			case '<': x64_emmit_prv(&asmg, token->groupSize);      break;
+			case '.': x64_emmit_out(&asmg, token->groupSize);      break;
+			case ',': x64_emmit_inp(&asmg, token->groupSize);      break;
+			case '[': x64_emmit_lbr(&asmg, token->parnerPosition); break;
+			case ']': x64_emmit_rbr(&asmg, token->parnerPosition); break;
 		}
 	}
 
-	static const char *const leave =
-		"\tmovq\t$60, %rax\n"
-		"\tmovq\t$0, %rdi\n"
-		"\tsyscall\n";
-
-	fprintf(file, "%s", leave);
-	fclose(file);
+	fprintf(asmg.file, "%s", Footer);
+	fclose(asmg.file);
 }
 
-inline static void produce_input_syscall (FILE *file, const unsigned long times)
+static void get_x64_prefixes (struct asmgen *asmg, const unsigned char cellSize)
 {
-	static const char *const template =
-		"\tmovq\t$0, %rax\n"
-		"\tmovq\t$0, %rdi\n"
-		"\tmovq\t$1, %rdx\n"
-		"\tmovq\t%r8, %rsi\n"
-		"\tsyscall\n";
-	for (unsigned long i = 0; i < times; i++)
+	switch (cellSize)
 	{
-		fprintf(file, "%s", template);
+		case 1: { asmg->x64regName = "al" ; asmg->x64prefix = 'b'; break; }
+		case 2: { asmg->x64regName = "ax" ; asmg->x64prefix = 'w'; break; }
+		case 4: { asmg->x64regName = "eax"; asmg->x64prefix = 'l'; break; }
+		case 8: { asmg->x64regName = "rax"; asmg->x64prefix = 'q'; break; }
 	}
 }
 
-inline static void produce_output_syscall (FILE *file, const unsigned long times)
+inline static void x64_emmit_inc (const struct asmgen *asmg, const unsigned long group)
+{
+	fprintf(asmg->file, "\tadd%c\t$%ld, (%%r8)\n", asmg->x64prefix, group);
+}
+
+inline static void x64_emmit_dec (const struct asmgen *asmg, const unsigned long group)
+{
+	fprintf(asmg->file, "\tsub%c\t$%ld, (%%r8)\n", asmg->x64prefix, group);
+}
+
+inline static void x64_emmit_nxt (const struct asmgen *asmg, const unsigned long group)
+{
+	fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group);
+}
+
+inline static void x64_emmit_prv (const struct asmgen *asmg, const unsigned long group)
+{
+	fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group);
+}
+
+inline static void x64_emmit_out (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
 		"\tmovq\t$1, %rax\n"
@@ -84,42 +106,42 @@ inline static void produce_output_syscall (FILE *file, const unsigned long times
 		"\tmovq\t$1, %rdx\n"
 		"\tmovq\t%r8, %rsi\n"
 		"\tsyscall\n";
-	for (unsigned long i = 0; i < times; i++)
+	for (unsigned long i = 0; i < group; i++)
 	{
-		fprintf(file, "%s", template);
+		fprintf(asmg->file, "%s", template);
 	}
 }
 
-inline static void produce_loop_opening (FILE *file, const unsigned long branch, const char prefix)
+inline static void x64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
 {
-	if (prefix == 'q')
+	static const char *const template =
+		"\tmovq\t$0, %rax\n"
+		"\tmovq\t$0, %rdi\n"
+		"\tmovq\t$1, %rdx\n"
+		"\tmovq\t%r8, %rsi\n"
+		"\tsyscall\n";
+	for (unsigned long i = 0; i < group; i++)
 	{
-		static const char *const template =
-			"\tmovq\t(%r8), %r9\n"
-			"\tcmpq\t$0, %r9\n"
-			"\tje\tLE%ld\n"
-			"LB%ld:\n";
-		fprintf(file, template, branch, branch);
-		return;
+		fprintf(asmg->file, "%s", template);
 	}
+}
 
-	char regprefx = prefix;
-	if (prefix == 'l') { regprefx = 'd'; }
-
+inline static void x64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
+{
+	printf("opening: %ld\n", branch);
 	static const char *const template =
 		"LB%ld:\n"
-		"\tmovzbl\t(%r8), %r9d\n"
-		"\tcmp%c\t$0, %r9%c\n"
+		"\tmovzbl\t(%r8), %%eax\n"
+		"\tcmpl\t$0, %%eax\n"
 		"\tje\tLE%ld\n";
-
-	fprintf(file, template, branch, prefix, regprefx, branch);
-	return;
+	fprintf(asmg->file, template, branch, branch);
 }
 
-inline static void produce_loop_closing (FILE *file, const unsigned long branch, const char prefix)
+inline static void x64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
 {
+	printf("closing: %ld\n", branch);
 	static const char *const template =
-		"\tjmp\tLB%d\n"
-		"LE%d:\n";
-	fprintf(file, template, branch, branch);
+		"\tjmp\tLB%ld\n"
+		"LE%ld:\n";
+	fprintf(asmg->file, template, branch, branch);
 }
