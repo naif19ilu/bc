@@ -33,7 +33,7 @@ inline static void x64_emmit_nxt (const struct asmgen*, const unsigned long);
 inline static void x64_emmit_prv (const struct asmgen*, const unsigned long);
 inline static void x64_emmit_out (const struct asmgen*, const unsigned long);
 inline static void x64_emmit_inp (const struct asmgen*, const unsigned long);
-inline etatic void x64_emmit_lbr (const struct asmgen*, const unsigned long);
+inline static void x64_emmit_lbr (const struct asmgen*, const unsigned long);
 inline static void x64_emmit_rbr (const struct asmgen*, const unsigned long);
 
 void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize)
