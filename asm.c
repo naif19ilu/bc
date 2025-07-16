@@ -7,9 +7,10 @@
 
 struct asmgen
 {
-	FILE *file;
-	char *x64regName;
-	char x64prefix;
+	FILE          *file;
+	char          *x64regName;
+	char          x64prefix;
+	unsigned char factor;
 };
 
 static const char *const Headers[] =
@@ -29,7 +30,7 @@ static const char *const Footers[] =
 	"\tmovq\t$0, %rdi\n"
 	"\tsyscall\n",
 
-}
+};
 
 /*  ________________________________________
  * < all this is for AMD64 code generation! >
@@ -53,6 +54,7 @@ static void get_x64_prefixes (struct asmgen *asmg, const unsigned char cellSize)
 		case 4: { asmg->x64regName = "eax"; asmg->x64prefix = 'l'; break; }
 		case 8: { asmg->x64regName = "rax"; asmg->x64prefix = 'q'; break; }
 	}
+	asmg->factor = cellSize;
 }
 
 inline static void x64_emmit_inc (const struct asmgen *asmg, const unsigned long group)
@@ -67,12 +69,12 @@ inline static void x64_emmit_dec (const struct asmgen *asmg, const unsigned long
 
 inline static void x64_emmit_nxt (const struct asmgen *asmg, const unsigned long group)
 {
-	fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group);
+	fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group * asmg->factor);
 }
 
 inline static void x64_emmit_prv (const struct asmgen *asmg, const unsigned long group)
 {
-	fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group);
+	fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group * asmg->factor);
 }
 
 inline static void x64_emmit_out (const struct asmgen *asmg, const unsigned long group)
@@ -105,12 +107,23 @@ inline static void x64_emmit_inp (const struct asmgen *asmg, const unsigned long
 
 inline static void x64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
 {
+	if (asmg->x64prefix == 'q')
+	{
+		static const char *const template =
+			"LB%ld:\n"
+			"\tmovq\t(%r8), %%rax\n"
+			"\tcmpq\t$0, %%rax\n"
+			"\tje\tLE%ld\n";
+		fprintf(asmg->file, template, branch, branch);
+		return;
+	}
+
 	static const char *const template =
 		"LB%ld:\n"
 		"\tmovzbl\t(%r8), %%eax\n"
-		"\tcmpl\t$0, %%eax\n"
+		"\tcmp%c\t$0, %%%s\n"
 		"\tje\tLE%ld\n";
-	fprintf(asmg->file, template, branch, branch);
+	fprintf(asmg->file, template, branch, asmg->x64prefix, asmg->x64regName, branch);
 }
 
 inline static void x64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
@@ -130,7 +143,7 @@ void asm_gen_asm (const struct stream *stream, const char *filename, const unsig
 	}
 
 	get_x64_prefixes(&asmg, cellSize);
-	fprintf(asmg.file, Header, (unsigned long) (tapeSize * cellSize));
+	fprintf(asmg.file, *Headers, (unsigned long) (tapeSize * cellSize));
 
 	for (size_t i = 0; i < stream->length; i++)
 	{
@@ -148,6 +161,6 @@ void asm_gen_asm (const struct stream *stream, const char *filename, const unsig
 		}
 	}
 
-	fprintf(asmg.file, "%s", Footer);
+	fprintf(asmg.file, "%s", *Footers);
 	fclose(asmg.file);
 }
