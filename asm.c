@@ -7,10 +7,10 @@
 
 struct asmgen
 {
-	FILE          *file;
-	char          *x64regName;
-	char          x64prefix;
-	unsigned char factor;
+	FILE      *file;
+	struct    { char *reg;  char prefix; unsigned char factor; } amd;
+	struct    { char *load; char *store; char prefix; } arm;
+	enum arch arch;
 };
 
 static const char *const Headers[] =
@@ -22,6 +22,14 @@ static const char *const Headers[] =
 	"_start:\n"
 	"\tleaq\tmemory(%rip), %rax\n"
 	"\tmovq\t%rax, %r8\n",
+
+	".section .bss\n"
+	"\tmemory: .skip %ld\n"
+	".section .text\n"
+	".globl _start\n"
+	"_start:\n"
+	"\tadrp\tx9, memory\n"
+	"\tadd\tx9,x9,:lo12:memory\n"
 };
 
 static const char *const Footers[] =
@@ -30,54 +38,40 @@ static const char *const Footers[] =
 	"\tmovq\t$0, %rdi\n"
 	"\tsyscall\n",
 
+	"\tmov\tx8, #9\n"
+	"\tmov\tx0, $0\n"
+	"\tsvc\t#0\n"
 };
 
-/*  ________________________________________
- * < all this is for AMD64 code generation! >
- *  ----------------------------------------
- *    \
- *     \
- *         .--.
- *        |o_o |
- *        |:_/ |
- *       //   \ \
- *      (|     | )
- *     /'\_   _/`\
- *     \___)=(___/
- */
-static void get_x64_prefixes (struct asmgen *asmg, const unsigned char cellSize)
+static void get_arch_family (struct asmgen *asmg, const unsigned char cellSize)
 {
+	if (asmg->arch == ARCH_AMD64)
+	{
+		switch (cellSize)
+		{
+			case 1: { asmg->amd.reg = "al" ; asmg->amd.prefix = 'b'; break; }
+			case 2: { asmg->amd.reg = "ax" ; asmg->amd.prefix = 'w'; break; }
+			case 4: { asmg->amd.reg = "eax"; asmg->amd.prefix = 'l'; break; }
+			case 8: { asmg->amd.reg = "rax"; asmg->amd.prefix = 'q'; break; }
+		}
+		asmg->amd.factor = cellSize;
+		return;
+	}
+
 	switch (cellSize)
 	{
-		case 1: { asmg->x64regName = "al" ; asmg->x64prefix = 'b'; break; }
-		case 2: { asmg->x64regName = "ax" ; asmg->x64prefix = 'w'; break; }
-		case 4: { asmg->x64regName = "eax"; asmg->x64prefix = 'l'; break; }
-		case 8: { asmg->x64regName = "rax"; asmg->x64prefix = 'q'; break; }
+		case 1: { asmg->arm.load = "ldrb"; asmg->arm.store = "strb"; asmg->arm.prefix = 'w'; break; }
+		case 2: { asmg->arm.load = "ldrh"; asmg->arm.store = "strh"; asmg->arm.prefix = 'w'; break; }
+		case 4: { asmg->arm.load = "ldr";  asmg->arm.store = "str";  asmg->arm.prefix = 'w'; break; }
+		case 8: { asmg->arm.load = "ldr";  asmg->arm.store = "str";  asmg->arm.prefix = 'x'; break; }
 	}
-	asmg->factor = cellSize;
 }
 
-inline static void x64_emmit_inc (const struct asmgen *asmg, const unsigned long group)
-{
-	fprintf(asmg->file, "\tadd%c\t$%ld, (%%r8)\n", asmg->x64prefix, group);
-}
-
-inline static void x64_emmit_dec (const struct asmgen *asmg, const unsigned long group)
-{
-	fprintf(asmg->file, "\tsub%c\t$%ld, (%%r8)\n", asmg->x64prefix, group);
-}
-
-inline static void x64_emmit_nxt (const struct asmgen *asmg, const unsigned long group)
-{
-	fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group * asmg->factor);
-}
-
-inline static void x64_emmit_prv (const struct asmgen *asmg, const unsigned long group)
-{
-	fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group * asmg->factor);
-}
-
-inline static void x64_emmit_out (const struct asmgen *asmg, const unsigned long group)
+inline static void amd64_emmit_inc (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tadd%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
+inline static void amd64_emmit_dec (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsub%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
+inline static void amd64_emmit_nxt (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group * asmg->amd.factor); }
+inline static void amd64_emmit_prv (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group * asmg->amd.factor); }
+inline static void amd64_emmit_out (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
 		"\tmovq\t$1, %rax\n"
@@ -90,8 +84,7 @@ inline static void x64_emmit_out (const struct asmgen *asmg, const unsigned long
 		fprintf(asmg->file, "%s", template);
 	}
 }
-
-inline static void x64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
+inline static void amd64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
 		"\tmovq\t$0, %rax\n"
@@ -104,10 +97,9 @@ inline static void x64_emmit_inp (const struct asmgen *asmg, const unsigned long
 		fprintf(asmg->file, "%s", template);
 	}
 }
-
-inline static void x64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
+inline static void amd64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
 {
-	if (asmg->x64prefix == 'q')
+	if (asmg->amd.prefix == 'q')
 	{
 		static const char *const template =
 			"LB%ld:\n"
@@ -123,10 +115,9 @@ inline static void x64_emmit_lbr (const struct asmgen *asmg, const unsigned long
 		"\tmovzbl\t(%r8), %%eax\n"
 		"\tcmp%c\t$0, %%%s\n"
 		"\tje\tLE%ld\n";
-	fprintf(asmg->file, template, branch, asmg->x64prefix, asmg->x64regName, branch);
+	fprintf(asmg->file, template, branch, asmg->amd.prefix, asmg->amd.reg, branch);
 }
-
-inline static void x64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
+inline static void amd64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
 {
 	static const char *const template =
 		"\tjmp\tLB%ld\n"
@@ -136,31 +127,28 @@ inline static void x64_emmit_rbr (const struct asmgen *asmg, const unsigned long
 
 void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
 {
-	struct asmgen asmg = { .file = fopen(filename, "w") };
-	if (!asmg.file)
-	{
-		fatal_file_ops(filename);
-	}
+	struct asmgen asmg = { .file = fopen(filename, "w"), .arch = arch };
+	if (!asmg.file) { fatal_file_ops(filename); }
 
-	get_x64_prefixes(&asmg, cellSize);
-	fprintf(asmg.file, *Headers, (unsigned long) (tapeSize * cellSize));
+	get_arch_family(&asmg, cellSize);
+	fprintf(asmg.file, Headers[arch], (unsigned long) (tapeSize * cellSize));
 
 	for (size_t i = 0; i < stream->length; i++)
 	{
 		const struct token *token = &stream->stream[i];
 		switch (token->meta.mnemonic)
 		{
-			case '+': x64_emmit_inc(&asmg, token->groupSize);      break;
-			case '-': x64_emmit_dec(&asmg, token->groupSize);      break;
-			case '>': x64_emmit_nxt(&asmg, token->groupSize);      break;
-			case '<': x64_emmit_prv(&asmg, token->groupSize);      break;
-			case '.': x64_emmit_out(&asmg, token->groupSize);      break;
-			case ',': x64_emmit_inp(&asmg, token->groupSize);      break;
-			case '[': x64_emmit_lbr(&asmg, token->parnerPosition); break;
-			case ']': x64_emmit_rbr(&asmg, token->parnerPosition); break;
+			case '+': emmit_inc(&asmg, token->groupSize);      break;
+			case '-': emmit_dec(&asmg, token->groupSize);      break;
+			case '>': emmit_nxt(&asmg, token->groupSize);      break;
+			case '<': emmit_prv(&asmg, token->groupSize);      break;
+			case '.': emmit_out(&asmg, token->groupSize);      break;
+			case ',': emmit_inp(&asmg, token->groupSize);      break;
+			case '[': emmit_lbr(&asmg, token->parnerPosition); break;
+			case ']': emmit_rbr(&asmg, token->parnerPosition); break;
 		}
 	}
 
-	fprintf(asmg.file, "%s", *Footers);
+	fprintf(asmg.file, "%s", Footers[arch]);
 	fclose(asmg.file);
 }

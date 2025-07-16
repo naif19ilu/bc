@@ -22,8 +22,8 @@
 
 enum arch
 {
-	ARCH_AMD64,
-	ARCH_ARM64,
+	ARCH_AMD64 = 0,
+	ARCH_ARM64 = 1,
 };
 
 struct token
