@@ -24,10 +24,10 @@ int main (int argc, char **argv)
 		.args.cellSize  = BC_DEFAULT_C,
 		.args.offset    = BC_DEFAULT_O,
 		.args.display   = BC_DEFAULT_d,
-		.args.group     = BC_DEFAULT_g
+		.args.group     = BC_DEFAULT_g,
 	};
 
-	char *arch = "AMD64";
+	char *arch = "amd64";
 	struct CxaFlag flags[] =
 	{
 		CXA_SET_STR("compile", "source to be compiled",                                         &bc.args.compile,  CXA_FLAG_TAKER_YES, 'c'),
@@ -41,16 +41,13 @@ int main (int argc, char **argv)
 		CXA_SET_INT("offset",  "print emulated memory from <offset> (0 default)",               &bc.args.offset,   CXA_FLAG_TAKER_MAY, 'O'),
 		CXA_SET_INT("display", "number of cells to display from emulated memory (100 default)", &bc.args.display,  CXA_FLAG_TAKER_MAY, 'd'),
 		CXA_SET_INT("group",   "number of columns to display when emu-mem (10 default)",        &bc.args.group,    CXA_FLAG_TAKER_MAY, 'g'),
-		CXA_SET_STR("arch",    "target archquitecture (AMD64 default, AMD64 | ARM^$)",          &arch,             CXA_FLAG_TAKER_MAY, 'A'),
+		CXA_SET_STR("arch",    "target archquitecture (amd64 default, amd64 | arm64)",          &arch,             CXA_FLAG_TAKER_MAY, 'A'),
 		CXA_SET_END
 	};
 
 	cxa_clean(cxa_execute((unsigned char) argc, argv, flags, "bc"));
+	bc.args.arch = (strncmp(arch, "arm64", 5) == 0 ? ARCH_ARM64 : ARCH_AMD64);
 
-	if (!strncmp(arch, "ARM64", 5) == 0)
-	{
-		bc.arch = ARCH_ARM64;
-	}
 	if (!bc.args.compile || (flags[5].meta & CXA_FLAG_SEEN_MASK))
 	{
 		cxa_print_usage("brainfuck compiler - x86_64", flags);
@@ -72,7 +69,7 @@ int main (int argc, char **argv)
 
 	if (flags[2].meta & CXA_FLAG_SEEN_MASK)
 	{
-		asm_gen_asm(&bc.stream, bc.args.source, bc.args.tapeSize, bc.args.cellSize, bc.arch);
+		asm_gen_asm(&bc.stream, bc.args.source, bc.args.tapeSize, bc.args.cellSize, bc.args.arch);
 	}
 	return 0;
 }

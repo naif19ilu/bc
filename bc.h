@@ -31,7 +31,6 @@ struct token
 	unsigned long ELFoffset;
 	unsigned long parnerPosition;
 	unsigned long groupSize;
-
 	struct
 	{
 		char           *context;
@@ -65,8 +64,8 @@ struct bc
 		char           *source;
 		bool           safeMode;
 		bool           emulate;
+		enum arch      arch;
 	} args;
-	enum arch arch;
 };
 
 #endif
