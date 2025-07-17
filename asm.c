@@ -260,6 +260,16 @@ static void arm64_emmit_out (const struct asmgen *asmg, const unsigned long grou
 
 static void arm64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
 {
+	static const char *const template =
+		"\tmov\tx8, #63\n"
+		"\tmov\tx0, #0\n"
+		"\tmov\tx1, x9\n"
+		"\tmov\tx2, #1\n"
+		"\tsvc\t#0\n";
+	for (unsigned long i = 0; i < group; i++)
+	{
+		fprintf(asmg->file, "%s", template);
+	}
 }
 
 static void arm64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
