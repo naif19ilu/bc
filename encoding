@@ -1,0 +1,62 @@
+
+	AMD64
+	~~~~~
+
+		~ REX prefix
+		One byte to indicate processor we're using 64 bit operations
+		  0100WRXB
+		W: Indicates we're doing operations over 64 bit registers
+		R: Extends the reg's register set to   r8 - r15 (ModRM field)
+		X: Extends the index's register set to r8 - r15 (SIB)
+		B: Extends the base's register set to  r8 - r15 (ModRM field)
+
+		~ OPcodes
+		Indicates what operation to perform (see instruction set)
+
+
+		~ ModRM
+		Single byte which indicates
+		1. Whether the operand is a register or memory
+		2. Which registers are involved
+		3. If operand's memory, how it's formed
+		mod: 2 bits xx000000
+		  00: mem, no disp    : [rax + 0]
+		  01: mem, 1 byte disp: [rax + 8-bits]
+		  10: mem, 4 byte disp: [rax + 32-bits]
+		  11: reg to reg      : rax, rbx
+		reg: 00xxx000
+		  always is source or destination operand (depends on opcode)
+		r/m: 00000xxx
+		  another register, just that if mod != 11 this will act like
+		  a base register
+
+		~ SIB (only trigged if Mod != 11)
+		useful when we need to index memory in a complex way: mov rax, [rbx + rcx*4 + 8]
+		[rbx + rcx * 4 + 8] is [base + index * scale + Displacement]
+		scale: xx000000: it can only either be 1,2,4, or 8 => (00, 01, 10, 11)
+		index: register (see Registers table)
+		base : register (see Registers table)
+
+		~ Displacement (only trigged if Mod != 11) 
+		It's the number that works as an offset when indexing
+		mov rax, [rbx + rcx*4 + 8]
+								~~~~ that number right here!
+
+		~ Immediate
+		Literal value if the opcode needs any :)
+
+		Registers Table:
+		~~~~~~~~~~~~~~~
+		000 rax     100 rsp      ~~~~~ if they're extended then
+		001 rcx     101 rbp            r8 will be 000 and so on
+		010 rdx     110 rsi
+		011 rbx     111 rdi
+
+
+	General
+	~~~~~~~
+
+	~ instruction set
+	AMD64: https://www.felixcloutier.com/x86/
+	ARM: https://developer.arm.com/documentation/ddi0602/2025-06/Base-Instructions?lang=en
+

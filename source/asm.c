@@ -10,8 +10,7 @@ struct asmgen
 	FILE          *file;
 	struct        { char *reg;  char prefix; } amd;
 	struct        { char *load; char *store; char prefix; } arm;
-	unsigned char factor;
-	enum arch     arch;
+	unsigned char cellwidth;
 };
 
 static const char *const Headers[] =
@@ -44,11 +43,11 @@ static const char *const Footers[] =
 	"\tsvc\t#0\n"
 };
 
-static void get_arch_family (struct asmgen *asmg, const unsigned char cellSize)
+static void get_arch_family (struct asmgen *asmg, const unsigned char cellSize, const enum arch arch)
 {
-	asmg->factor = cellSize;
+	asmg->cellwidth = cellSize;
 
-	if (asmg->arch == ARCH_AMD64)
+	if (arch == ARCH_AMD64)
 	{
 		switch (cellSize)
 		{
@@ -95,10 +94,10 @@ static void arm64_emmit_rbr (const struct asmgen*, const unsigned long);
 
 void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
 {
-	struct asmgen asmg = { .file = fopen(filename, "w"), .arch = arch };
+	struct asmgen asmg = { .file = fopen(filename, "w") };
 	if (!asmg.file) { fatal_file_ops(filename); }
 
-	get_arch_family(&asmg, cellSize);
+	get_arch_family(&asmg, cellSize, arch);
 	fprintf(asmg.file, Headers[arch], (unsigned long) (tapeSize * cellSize));
 
 	typedef void (*emmiter_t) (const struct asmgen*, const unsigned long);
@@ -135,15 +134,15 @@ void asm_gen_asm (const struct stream *stream, const char *filename, const unsig
 	if (fclose(asmg.file)) { fatal_file_ops(filename); }
 }
 
-inline static void amd64_emmit_inc (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tadd%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
+static void amd64_emmit_inc (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tadd%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
 
-inline static void amd64_emmit_dec (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsub%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
+static void amd64_emmit_dec (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsub%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
 
-inline static void amd64_emmit_nxt (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group * asmg->factor); }
+static void amd64_emmit_nxt (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group * asmg->cellwidth); }
 
-inline static void amd64_emmit_prv (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group * asmg->factor); }
+static void amd64_emmit_prv (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group * asmg->cellwidth); }
 
-inline static void amd64_emmit_out (const struct asmgen *asmg, const unsigned long group)
+static void amd64_emmit_out (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
 		"\tmovq\t$1, %rax\n"
@@ -157,7 +156,7 @@ inline static void amd64_emmit_out (const struct asmgen *asmg, const unsigned lo
 	}
 }
 
-inline static void amd64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
+static void amd64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
 		"\tmovq\t$0, %rax\n"
@@ -171,7 +170,7 @@ inline static void amd64_emmit_inp (const struct asmgen *asmg, const unsigned lo
 	}
 }
 
-inline static void amd64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
+static void amd64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
 {
 	if (asmg->amd.prefix == 'q')
 	{
@@ -192,7 +191,7 @@ inline static void amd64_emmit_lbr (const struct asmgen *asmg, const unsigned lo
 	fprintf(asmg->file, template, branch, asmg->amd.prefix, asmg->amd.reg, branch);
 }
 
-inline static void amd64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
+static void amd64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
 {
 	static const char *const template =
 		"\tjmp\tLB%ld\n"
@@ -235,7 +234,7 @@ static void arm64_emmit_nxt (const struct asmgen *asmg, const unsigned long grou
 	static const char *const template =
 		"\tmov\tx10, #%ld\n"
 		"\tadd\tx9, x9, x10\n";
-	fprintf(asmg->file, template, group * asmg->factor);
+	fprintf(asmg->file, template, group * asmg->cellwidth);
 }
 
 static void arm64_emmit_prv (const struct asmgen *asmg, const unsigned long group)
@@ -243,7 +242,7 @@ static void arm64_emmit_prv (const struct asmgen *asmg, const unsigned long grou
 	static const char *const template =
 		"\tmov\tx10, #%ld\n"
 		"\tsub\tx9, x9, x10\n";
-	fprintf(asmg->file, template, group * asmg->factor);
+	fprintf(asmg->file, template, group * asmg->cellwidth);
 }
 
 static void arm64_emmit_out (const struct asmgen *asmg, const unsigned long group)
