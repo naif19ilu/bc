@@ -274,8 +274,18 @@ static void arm64_emmit_inp (const struct asmgen *asmg, const unsigned long grou
 
 static void arm64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
 {
+	static const char *template =
+		"LB%d:\n"
+		"\t%s\t%c10, [x9]\n"
+		"\tcmp\t%c10, #0\n"
+		"\tbeq\tLE%d\n";
+	fprintf(asmg->file, template, branch, asmg->arm.load, asmg->arm.prefix, asmg->arm.prefix, branch);
 }
 
 static void arm64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
 {
+	static const char *const template =
+		"\tb\tLB%ld\n"
+		"LE%ld:\n";
+	fprintf(asmg->file, template, branch, branch);
 }
