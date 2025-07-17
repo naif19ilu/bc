@@ -5,14 +5,7 @@
 #include "elf.h"
 #include "fatal.h"
 
-#define INST_MAX_LENGTH   8
 #define BUFFER_LENGTH     2048
-
-struct instruction
-{
-	unsigned char code[INST_MAX_LENGTH];
-	unsigned char length;
-};
 
 struct elfgen
 {
@@ -20,9 +13,46 @@ struct elfgen
 	struct         { char buffer[BUFFER_LENGTH]; size_t at; } buffer;
 	char           *filename;
 	unsigned long  offset;
+	unsigned int   bsstarts;
 	unsigned short npages;
 	unsigned char  cellwidth;
 };
+
+inline static void get_little_endian (const unsigned long imm, const unsigned short offset, const unsigned short immsz, unsigned char *inst)
+{
+	for (unsigned short i = offset, j = 0; i < offset + immsz; i++)
+	{
+		inst[i] = (unsigned char) ((imm >> (8 * j++)) & 0xff);
+	}
+}
+
+static void check_buffer_capacity (struct elfgen*, const unsigned char);
+static void write_instruction (struct elfgen*, const unsigned char*, const unsigned char);
+
+static void emmit_header (struct stream*, struct elfgen*);
+
+void elf_produce_elf (struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
+{
+	struct elfgen elfg =
+	{
+		.file      = fopen(filename, "wb"),
+		.filename  = (char*) filename,
+		.offset    = 0x0401000,
+		.npages    = (unsigned short) (stream->length / 4096) + 1,
+		.bsstarts  = 0x401000 + elfg.npages,
+		.cellwidth = cellSize,
+	};
+
+	if (!elfg.file) { fatal_file_ops(filename); }
+
+	emmit_header(stream, &elfg);
+	if (fwrite(elfg.buffer.buffer, 1, elfg.buffer.at, elfg.file) != elfg.buffer.at)
+	{
+		fatal_file_ops(elfg.filename);
+	}
+
+	if (fclose(elfg.file)) { fatal_file_ops(filename); }
+}
 
 static void check_buffer_capacity (struct elfgen *elfg, const unsigned char instsz)
 {
@@ -36,39 +66,21 @@ static void check_buffer_capacity (struct elfgen *elfg, const unsigned char inst
 	}
 }
 
-static void write_instruction (struct elfgen *elfg, const struct instruction inst)
+static void write_instruction (struct elfgen *elfg, const unsigned char *inst, const unsigned char length)
 {
-	check_buffer_capacity(elfg, inst.length);
-	for (unsigned char i = 0; i < inst.length; i++)
+	check_buffer_capacity(elfg, length);
+	for (unsigned char i = 0; i < length; i++)
 	{
-		elfg->buffer.buffer[elfg->buffer.at++] = inst.code[i];
+		elfg->buffer.buffer[elfg->buffer.at++] = inst[i];
 		elfg->offset++;
 	}
 }
 
 static void emmit_header (struct stream *stream, struct elfgen *elfg)
 {
-	static const unsigned char const amd64[] =
-	{
-		0x55,
-		0x48, 0x89, 0xe5,
-	};
-}
+	unsigned char amd64[32] = { 0x4c, 0x8d, 0x84 };
+	get_little_endian((unsigned long) elfg->bsstarts, 3, 4, amd64);
 
-void elf_produce_elf (struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
-{
-	struct elfgen elfg =
-	{
-		.file      = fopen(filename, "wb"),
-		.filename  = filename,
-		.offset    = 0x0401000,
-		.npages    = 1,
-		.cellwidth = cellSize,
-	};
-
-	if (!elfg.file) { fatal_file_ops(filename); }
-
-	emmit_header(stream, &elfg);
-	if (fclose(elfg.file)) { fatal_file_ops(filename); }
+	write_instruction(elfg, amd64, 7);
 }
 
