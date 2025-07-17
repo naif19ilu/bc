@@ -38,8 +38,8 @@ static const char *const Footers[] =
 	"\tmovq\t$0, %rdi\n"
 	"\tsyscall\n",
 
-	"\tmov\tx8, #9\n"
-	"\tmov\tx0, $0\n"
+	"\tmov\tx8, #93\n"
+	"\tmov\tx0, #0\n"
 	"\tsvc\t#0\n"
 };
 
@@ -67,10 +67,80 @@ static void get_arch_family (struct asmgen *asmg, const unsigned char cellSize)
 	}
 }
 
+static void amd64_emmit_inc (const struct asmgen*, const unsigned long);
+static void amd64_emmit_dec (const struct asmgen*, const unsigned long);
+
+static void amd64_emmit_nxt (const struct asmgen*, const unsigned long);
+static void amd64_emmit_prv (const struct asmgen*, const unsigned long);
+
+static void amd64_emmit_out (const struct asmgen*, const unsigned long);
+static void amd64_emmit_inp (const struct asmgen*, const unsigned long);
+
+static void amd64_emmit_lbr (const struct asmgen*, const unsigned long);
+static void amd64_emmit_rbr (const struct asmgen*, const unsigned long);
+
+static void arm64_emmit_inc (const struct asmgen*, const unsigned long);
+static void arm64_emmit_dec (const struct asmgen*, const unsigned long);
+
+static void arm64_emmit_nxt (const struct asmgen*, const unsigned long);
+static void arm64_emmit_prv (const struct asmgen*, const unsigned long);
+
+static void arm64_emmit_out (const struct asmgen*, const unsigned long);
+static void arm64_emmit_inp (const struct asmgen*, const unsigned long);
+
+static void arm64_emmit_lbr (const struct asmgen*, const unsigned long);
+static void arm64_emmit_rbr (const struct asmgen*, const unsigned long);
+
+void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
+{
+	struct asmgen asmg = { .file = fopen(filename, "w"), .arch = arch };
+	if (!asmg.file) { fatal_file_ops(filename); }
+
+	get_arch_family(&asmg, cellSize);
+	fprintf(asmg.file, Headers[arch], (unsigned long) (tapeSize * cellSize));
+
+	typedef void (*emmiter_t) (const struct asmgen*, const unsigned long);
+
+	const emmiter_t emmiters[] =
+	{
+		(arch == ARCH_AMD64) ? amd64_emmit_inc : arm64_emmit_inc,
+		(arch == ARCH_AMD64) ? amd64_emmit_dec : arm64_emmit_dec,
+		(arch == ARCH_AMD64) ? amd64_emmit_nxt : arm64_emmit_nxt,
+		(arch == ARCH_AMD64) ? amd64_emmit_prv : arm64_emmit_prv,
+		(arch == ARCH_AMD64) ? amd64_emmit_out : arm64_emmit_out,
+		(arch == ARCH_AMD64) ? amd64_emmit_inp : arm64_emmit_inp,
+		(arch == ARCH_AMD64) ? amd64_emmit_lbr : arm64_emmit_lbr,
+		(arch == ARCH_AMD64) ? amd64_emmit_rbr : arm64_emmit_rbr,
+	};
+
+	for (size_t i = 0; i < stream->length; i++)
+	{
+		const struct token *token = &stream->stream[i];
+		switch (token->meta.mnemonic)
+		{
+			case '+': emmiters[0] (&asmg, token->groupSize);      break;
+			case '-': emmiters[1] (&asmg, token->groupSize);      break;
+			case '>': emmiters[2] (&asmg, token->groupSize);      break;
+			case '<': emmiters[3] (&asmg, token->groupSize);      break;
+			case '.': emmiters[4] (&asmg, token->groupSize);      break;
+			case ',': emmiters[5] (&asmg, token->groupSize);      break;
+			case '[': emmiters[6] (&asmg, token->parnerPosition); break;
+			case ']': emmiters[7] (&asmg, token->parnerPosition); break;
+		}
+	}
+
+	fprintf(asmg.file, "%s", Footers[arch]);
+	fclose(asmg.file);
+}
+
 inline static void amd64_emmit_inc (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tadd%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
+
 inline static void amd64_emmit_dec (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsub%c\t$%ld, (%%r8)\n", asmg->amd.prefix, group); }
+
 inline static void amd64_emmit_nxt (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\taddq\t$%ld, %%r8\n", group * asmg->amd.factor); }
+
 inline static void amd64_emmit_prv (const struct asmgen *asmg, const unsigned long group) { fprintf(asmg->file, "\tsubq\t$%ld, %%r8\n", group * asmg->amd.factor); }
+
 inline static void amd64_emmit_out (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
@@ -84,6 +154,7 @@ inline static void amd64_emmit_out (const struct asmgen *asmg, const unsigned lo
 		fprintf(asmg->file, "%s", template);
 	}
 }
+
 inline static void amd64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
 {
 	static const char *const template =
@@ -97,6 +168,7 @@ inline static void amd64_emmit_inp (const struct asmgen *asmg, const unsigned lo
 		fprintf(asmg->file, "%s", template);
 	}
 }
+
 inline static void amd64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
 {
 	if (asmg->amd.prefix == 'q')
@@ -117,6 +189,7 @@ inline static void amd64_emmit_lbr (const struct asmgen *asmg, const unsigned lo
 		"\tje\tLE%ld\n";
 	fprintf(asmg->file, template, branch, asmg->amd.prefix, asmg->amd.reg, branch);
 }
+
 inline static void amd64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
 {
 	static const char *const template =
@@ -125,30 +198,56 @@ inline static void amd64_emmit_rbr (const struct asmgen *asmg, const unsigned lo
 	fprintf(asmg->file, template, branch, branch);
 }
 
-void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
+static void arm64_emmit_inc (const struct asmgen *asmg, const unsigned long group)
 {
-	struct asmgen asmg = { .file = fopen(filename, "w"), .arch = arch };
-	if (!asmg.file) { fatal_file_ops(filename); }
+	static const char *const template =
+		"\t%s\t%c10, [x9]\n"
+		"\tmov\t%c11, #%ld\n"
+		"\tadd\t%c10, %c10, %c11\n"
+		"\t%s\t%c10, [x9]\n";
+	fprintf(
+		asmg->file, template, asmg->arm.load, asmg->arm.prefix,
+		asmg->arm.prefix, group,
+		asmg->arm.prefix, asmg->arm.prefix, asmg->arm.prefix,
+		asmg->arm.store, asmg->arm.prefix
+	);
+}
 
-	get_arch_family(&asmg, cellSize);
-	fprintf(asmg.file, Headers[arch], (unsigned long) (tapeSize * cellSize));
+static void arm64_emmit_dec (const struct asmgen *asmg, const unsigned long group)
+{
+	static const char *const template =
+		"\t%s\t%c10, [x9]\n"
+		"\tmov\t%c11, #%ld\n"
+		"\tsub\t%c10, %c10, %c11\n"
+		"\t%s\t%c10, [x9]\n";
+	fprintf(
+		asmg->file, template, asmg->arm.load, asmg->arm.prefix,
+		asmg->arm.prefix, group,
+		asmg->arm.prefix, asmg->arm.prefix, asmg->arm.prefix,
+		asmg->arm.store, asmg->arm.prefix
+	);
+}
 
-	for (size_t i = 0; i < stream->length; i++)
-	{
-		const struct token *token = &stream->stream[i];
-		switch (token->meta.mnemonic)
-		{
-			case '+': emmit_inc(&asmg, token->groupSize);      break;
-			case '-': emmit_dec(&asmg, token->groupSize);      break;
-			case '>': emmit_nxt(&asmg, token->groupSize);      break;
-			case '<': emmit_prv(&asmg, token->groupSize);      break;
-			case '.': emmit_out(&asmg, token->groupSize);      break;
-			case ',': emmit_inp(&asmg, token->groupSize);      break;
-			case '[': emmit_lbr(&asmg, token->parnerPosition); break;
-			case ']': emmit_rbr(&asmg, token->parnerPosition); break;
-		}
-	}
+static void arm64_emmit_nxt (const struct asmgen *asmg, const unsigned long group)
+{
+}
 
-	fprintf(asmg.file, "%s", Footers[arch]);
-	fclose(asmg.file);
+static void arm64_emmit_prv (const struct asmgen *asmg, const unsigned long group)
+{
+}
+
+static void arm64_emmit_out (const struct asmgen *asmg, const unsigned long group)
+{
+}
+
+static void arm64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
+{
+}
+
+static void arm64_emmit_lbr (const struct asmgen *asmg, const unsigned long branch)
+{
+}
+
+static void arm64_emmit_rbr (const struct asmgen *asmg, const unsigned long branch)
+{
 }

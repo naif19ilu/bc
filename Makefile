@@ -14,8 +14,13 @@ $(final): $(objs)
 	cc	-o $(final) $(objs)
 %.o: %.c
 	cc	-c $< $(flags)
-asm:
+amd: a.s
 	as	a.s -g
 	ld	a.out -o asm
+	./asm
+arm: a.s
+	aarch64-linux-gnu-as	a.s -g
+	aarch64-linux-gnu-ld	a.out -o asm
+	qemu-aarch64 ./asm
 clear:
 	rm	-rf $(objs) $(final) a.s a.out asm
