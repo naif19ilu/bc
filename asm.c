@@ -230,14 +230,32 @@ static void arm64_emmit_dec (const struct asmgen *asmg, const unsigned long grou
 
 static void arm64_emmit_nxt (const struct asmgen *asmg, const unsigned long group)
 {
+	static const char *const template =
+		"\tmov\tx10, #%ld\n"
+		"\tadd\tx9, x9, x10\n";
+	fprintf(asmg->file, template, group);
 }
 
 static void arm64_emmit_prv (const struct asmgen *asmg, const unsigned long group)
 {
+	static const char *const template =
+		"\tmov\tx10, #%ld\n"
+		"\tsub\tx9, x9, x10\n";
+	fprintf(asmg->file, template, group);
 }
 
 static void arm64_emmit_out (const struct asmgen *asmg, const unsigned long group)
 {
+	static const char *const template =
+		"\tmov\tx8, #64\n"
+		"\tmov\tx0, #1\n"
+		"\tmov\tx1, x9\n"
+		"\tmov\tx2, #1\n"
+		"\tsvc\t#0\n";
+	for (unsigned long i = 0; i < group; i++)
+	{
+		fprintf(asmg->file, "%s", template);
+	}
 }
 
 static void arm64_emmit_inp (const struct asmgen *asmg, const unsigned long group)
