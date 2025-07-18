@@ -19,7 +19,7 @@ struct elfgen
 	char           *filename;
 	unsigned long  offset;
 	unsigned int   bsstarts;
-	unsigned short npages;
+	unsigned int   npages;
 	unsigned char  cellwidth;
 	enum arch      arch;
 };
@@ -47,12 +47,12 @@ void elf_produce_elf (struct stream *stream, const char *filename, const unsigne
 		.file      = fopen(filename, "wb"),
 		.filename  = (char*) filename,
 		.offset    = 0x0401000,
-		.npages    = (unsigned short) (stream->length / 4096) + 1,
-		.bsstarts  = 0x401000 + elfg.npages,
+		.npages    = ((unsigned int) stream->length / 4096) + 1,
 		.cellwidth = cellSize,
 		.arch      = arch
 	};
 
+	elfg.bsstarts  = 0x401000 + elfg.npages * 4096;
 	if (!elfg.file) { fatal_file_ops(filename); }
 
 	emmit_header(&elfg);
@@ -92,9 +92,9 @@ static void emmit_header (struct elfgen *elfg)
 {
 	if (elfg->arch == ARCH_AMD64)
 	{
-		unsigned char amd64[7] = { 0x4c, 0x8d, 0x84, 0x24 };
+		unsigned char amd64[8] = { 0x4c, 0x8d, 0x84, 0x24 };
 		get_little_endian((unsigned long) elfg->bsstarts, 4, IMM_32_BITS, amd64);
-		write_instruction(elfg, amd64, 7);
+		write_instruction(elfg, amd64, 8);
 		return;
 	}
 }

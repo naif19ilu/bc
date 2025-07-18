@@ -13,7 +13,6 @@
 		~ OPcodes
 		Indicates what operation to perform (see instruction set)
 
-
 		~ ModRM
 		Single byte which indicates
 		1. Whether the operand is a register or memory
@@ -36,6 +35,8 @@
 		scale: xx000000: it can only either be 1,2,4, or 8 => (00, 01, 10, 11)
 		index: register (see Registers table)
 		base : register (see Registers table)
+
+		IF INDEX REGISTER IS 100 THEN NO INDEX IS GOING TO BE USED!!!
 
 		~ Displacement (only trigged if Mod != 11) 
 		It's the number that works as an offset when indexing
