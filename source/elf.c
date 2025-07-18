@@ -39,6 +39,7 @@ static void emmit_header (struct elfgen*);
 static void write_code (struct stream*, struct elfgen*);
 
 static void emmit_amd64_inc_dec (const unsigned long, struct elfgen*, const char);
+static void emmit_amd64_nxt_prv (const unsigned long, struct elfgen*, const char);
 
 void elf_produce_elf (struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
 {
@@ -108,6 +109,9 @@ static void write_code (struct stream *stream, struct elfgen *elfg)
 		{
 			case '+':
 			case '-': emmit_amd64_inc_dec(token->groupSize, elfg, token->meta.mnemonic); break;
+
+			case '>':
+			case '<': emmit_amd64_nxt_prv(token->groupSize, elfg, token->meta.mnemonic); break;
 		}
 	}
 }
@@ -145,4 +149,16 @@ static void emmit_amd64_inc_dec (const unsigned long times, struct elfgen *elfg,
 		case 4:
 		case 8: write_instruction(elfg, code[write], 7); break;
 	}
+}
+
+static void emmit_amd64_nxt_prv (const unsigned long times, struct elfgen *elfg, const char mnemonic)
+{
+	unsigned char code[][7] = {
+		{0x49, 0x81, 0xe8, 0x00, 0x00, 0x00, 0x00},
+		{0x49, 0x81, 0xc0, 0x00, 0x00, 0x00, 0x00},
+	};
+
+	const unsigned int write = (mnemonic == '>');
+	get_little_endian(times, 3, IMM_32_BITS, code[write]);
+	write_instruction(elfg, code[write], 7);
 }
