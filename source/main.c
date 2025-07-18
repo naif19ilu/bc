@@ -17,16 +17,16 @@ static void check_arguments (struct bc*);
 
 int main (int argc, char **argv)
 {
-	struct bc bc =
-	{
-		.args.output    = BC_DEFAULT_o,
-		.args.source    = BC_DEFAULT_S,
-		.args.tapeSize  = BC_DEFAULT_T,
-		.args.cellSize  = BC_DEFAULT_C,
-		.args.offset    = BC_DEFAULT_O,
-		.args.display   = BC_DEFAULT_d,
-		.args.group     = BC_DEFAULT_g,
-	};
+	struct bc bc;
+	memset(&bc, 0, sizeof(bc));
+
+	bc.args.output   = BC_DEFAULT_o;
+	bc.args.source   = BC_DEFAULT_S;
+	bc.args.tapeSize = BC_DEFAULT_T;
+	bc.args.cellSize = BC_DEFAULT_C;
+	bc.args.offset   = BC_DEFAULT_O;
+	bc.args.display  = BC_DEFAULT_d;
+	bc.args.group    = BC_DEFAULT_g;
 
 	char *arch = "amd64";
 	struct CxaFlag flags[] =

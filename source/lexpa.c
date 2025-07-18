@@ -7,6 +7,8 @@
 
 #include <stdlib.h>
 
+#define MAX(a, b)   ((a) > (b) ? (a) : (b))
+
 struct openLoopStack
 {
 	struct token *stack[OPENLOOP_STACK_MAX_CAP];
@@ -31,6 +33,8 @@ void lexpa_lex_n_parse (const char *source, const size_t length, struct stream *
 
 	struct openLoopStack stack = {0};
 
+	unsigned long lhsloop = 0, nested = 0;
+
 	for (size_t i = 0; i < length; i++)
 	{
 		const char mnemonic = source[i];
@@ -51,8 +55,28 @@ void lexpa_lex_n_parse (const char *source, const size_t length, struct stream *
 			case ',':
 			case '.':
 			case '@': { last = handle_accumulative(stream, source + i, numline, offline); break; }
-			case '[': { handle_opening(&stack, stream, source + i, numline, offline); last = NULL; break; }
-			case ']': { handle_closing(&stack, stream, source + i, numline, offline); last = NULL; break; }
+
+			case '[':
+			{
+				lhsloop++;
+				nested++;
+				handle_opening(&stack, stream, source + i, numline, offline);
+				last = NULL;
+				break;
+			}
+			case ']':
+			{
+				handle_closing(&stack, stream, source + i, numline, offline);
+				last = NULL;
+				lhsloop--;
+
+				if (lhsloop == 0)
+				{
+					stream->nonested = MAX(stream->nonested, nested);
+					nested = 0;
+				}
+				break;
+			}
 			case 10 : { numline++; offline = 0; continue; }
 		}
 		offline++;
@@ -123,6 +147,7 @@ static void handle_closing (struct openLoopStack *stack, struct stream *stream, 
 	struct token* open    = stack->stack[--stack->at];
 
 	close->parnerPosition = open->parnerPosition;
+	open->parnerPosition  = stream->length - 1;
 
 	close->groupSize      = 1;
 	close->meta.numline   = numline;

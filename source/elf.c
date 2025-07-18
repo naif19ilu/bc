@@ -14,9 +14,8 @@
 
 struct elfgen
 {
-	FILE           *file;
-	struct         { char *buffer; size_t at, cap; } buffer;
-	char           *filename;
+	struct         { unsigned char *buffer; size_t at, cap; } buffer;
+	struct         { unsigned long *at, nth; } ujmps;
 	unsigned long  offset;
 	unsigned int   bsstarts;
 	unsigned int   npages;
@@ -32,43 +31,60 @@ inline static void get_little_endian (const unsigned long imm, const unsigned sh
 	}
 }
 
+static void open_and_write_elf (struct elfgen*, const char*);
 static void write_instruction (struct elfgen*, const unsigned char*, const unsigned char);
+
 static void emmit_header (struct elfgen*);
-static void write_code (struct stream*, struct elfgen*);
+static void resolve_stream (struct stream*, struct elfgen*);
 
 static void emmit_amd64_inc_dec (const unsigned long, struct elfgen*, const char);
 static void emmit_amd64_nxt_prv (const unsigned long, struct elfgen*, const char);
 
 static void emmit_amd64_out_inp (const unsigned long, struct elfgen*, const char);
+static void emmit_amd64_lhs_rhs (struct elfgen*, struct token*, const char);
 
 void elf_produce_elf (struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
 {
 	struct elfgen elfg =
 	{
-		.file          = NULL,
-		.buffer.cap    = 4096,
-		.buffer.buffer = (char*) calloc(elfg.buffer.cap, sizeof(unsigned char)),
-		.filename      = (char*) filename,
-		.offset        = 0x0401000,
-		.npages        = ((unsigned int) stream->length / 4096) + 1,
-		.cellwidth     = cellSize,
-		.arch          = arch
+		.buffer.cap     = 4096,
+		.buffer.buffer  = (unsigned char*) calloc(elfg.buffer.cap, sizeof(unsigned char)),
+		.ujmps.at       = (unsigned long*) calloc(stream->nonested, sizeof(unsigned long)),
+		.offset         = 0x401000,
+		.npages         = ((unsigned int) stream->length / 4096) + 1,
+		.cellwidth      = cellSize,
+		.arch           = arch
 	};
 
-	CHECK_POINTER(elfg.buffer.buffer, "reserving space for bytecode");
+	/* default position to place the first instruction is at 0x401000 (text section somewhat)
+	 * for placing the memory (in this case) we will pick 0x401000 + number of pages used
+	 * for writing the code, each page is 4 kB
+	 */
 	elfg.bsstarts = 0x401000 + elfg.npages * 4096;
 
-	if (!elfg.file) { fatal_file_ops(filename); }
+	CHECK_POINTER(elfg.buffer.buffer, "reserving space for bytecode");
+	CHECK_POINTER(elfg.ujmps.at, "unresolved jumps, internal stuff my man");
 
 	emmit_header(&elfg);
-	write_code(stream, &elfg);
+	resolve_stream(stream, &elfg);
+	open_and_write_elf(&elfg, filename);
 
-	if (fwrite(elfg.buffer.buffer, 1, elfg.buffer.at, elfg.file) != elfg.buffer.at)
+	// TODO: set them free
+}
+
+static void open_and_write_elf (struct elfgen *elfg, const char *filename)
+{
+	FILE *file = fopen(filename, "wb");
+	if (!file)
 	{
-		fatal_file_ops(elfg.filename);
+		fatal_file_ops(filename);
 	}
 
-	if (fclose(elfg.file)) { fatal_file_ops(filename); }
+	if (fwrite(elfg->buffer.buffer, 1, elfg->buffer.at, file) != elfg->buffer.at)
+	{
+		fatal_file_ops(filename);
+	}
+	if (fclose(file)) { fatal_file_ops(filename); }
 }
 
 static void write_instruction (struct elfgen *elfg, const unsigned char *inst, const unsigned char length)
@@ -76,7 +92,7 @@ static void write_instruction (struct elfgen *elfg, const unsigned char *inst, c
 	if ((elfg->buffer.at + length) >= elfg->buffer.cap)
 	{
 		elfg->buffer.cap += 4096;
-		elfg->buffer.buffer = (char*) realloc(elfg->buffer.buffer, elfg->buffer.cap);
+		elfg->buffer.buffer = (unsigned char*) realloc(elfg->buffer.buffer, elfg->buffer.cap);
 		CHECK_POINTER(elfg->buffer.buffer, "reserving space for bytecode");
 	}
 
@@ -98,7 +114,7 @@ static void emmit_header (struct elfgen *elfg)
 	}
 }
 
-static void write_code (struct stream *stream, struct elfgen *elfg)
+static void resolve_stream (struct stream *stream, struct elfgen *elfg)
 {
 	for (size_t i = 0; i < stream->length; i++)
 	{
@@ -113,6 +129,9 @@ static void write_code (struct stream *stream, struct elfgen *elfg)
 
 			case '.':
 			case ',': emmit_amd64_out_inp(token->groupSize, elfg, token->meta.mnemonic); break;
+
+			case ']': emmit_amd64_lhs_rhs(elfg, token, token->meta.mnemonic); break;
+			case '[': emmit_amd64_lhs_rhs(elfg, &stream->stream[token->parnerPosition], token->meta.mnemonic); break;
 		}
 	}
 }
@@ -186,6 +205,64 @@ static void emmit_amd64_out_inp (const unsigned long times, struct elfgen *elfg,
 	}
 }
 
-static void emmit_amd64_looping ()
+static void emmit_amd64_lhs_rhs (struct elfgen *elfg, struct token *close, const char mnemonic)
 {
+	const bool usg64 = (elfg->cellwidth == 8);
+
+	if (mnemonic == ']')
+	{
+		/* overwriting the address that was left behind when implementing [ token */
+		const unsigned long offset = elfg->ujmps.at[--elfg->ujmps.nth];
+		get_little_endian(elfg->offset, offset, IMM_32_BITS, elfg->buffer.buffer);
+
+		/* movq rax, <address>
+		 * jmp  rax
+		 */
+		unsigned char code[] =
+		{
+			0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0xff, 0xe0
+		};
+		get_little_endian(close->jmp, 2, IMM_64_BITS, code);
+		write_instruction(elfg, code, 12);
+		return;
+	}
+
+	static const unsigned char code[][15] =
+	{
+		/* movq rax, [r8]
+		 * cmpq rax, 0
+		 * je   <address_rel32>
+		 */
+		{
+			0x49, 0x8b, 0x00,
+			0x48, 0x83, 0xf8, 0x00,
+			0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+		},
+
+		/* movxz  eax, [r8]
+		 * cmpd   eax, 0
+		 * je     <address_rel32>
+		 */
+		{
+			0x41, 0x0f, 0xb6, 0x00,
+			0x3d, 0x00, 0x00, 0x00, 0x00,
+			0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+		}
+	};
+
+	/* for the ']' token we define the jump address as absolute
+	 * since the `jmp` allows absolute jumps :)
+	 */
+	close->jmp = elfg->offset;
+
+	const unsigned long overwriteAt = elfg->buffer.at + (usg64 ? 9 : 11);
+	elfg->ujmps.at[elfg->ujmps.nth++] = overwriteAt;
+
+	/* the code will be written but since we do not know the address where to jump
+	 * yet it will be set to zero and whenever ] is found, we will overwrite the
+	 * address to the actual number
+	 */
+	write_instruction(elfg, code[elfg->cellwidth != 8], (usg64 ? 13 : 15));
 }
+
