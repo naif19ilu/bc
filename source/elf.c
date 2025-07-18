@@ -41,6 +41,8 @@ static void write_code (struct stream*, struct elfgen*);
 static void emmit_amd64_inc_dec (const unsigned long, struct elfgen*, const char);
 static void emmit_amd64_nxt_prv (const unsigned long, struct elfgen*, const char);
 
+static void emmit_amd64_out_inp (const unsigned long, struct elfgen*, const char);
+
 void elf_produce_elf (struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
 {
 	struct elfgen elfg =
@@ -112,6 +114,9 @@ static void write_code (struct stream *stream, struct elfgen *elfg)
 
 			case '>':
 			case '<': emmit_amd64_nxt_prv(token->groupSize, elfg, token->meta.mnemonic); break;
+
+			case '.':
+			case ',': emmit_amd64_out_inp(token->groupSize, elfg, token->meta.mnemonic); break;
 		}
 	}
 }
@@ -162,3 +167,26 @@ static void emmit_amd64_nxt_prv (const unsigned long times, struct elfgen *elfg,
 	get_little_endian(times, 3, IMM_32_BITS, code[write]);
 	write_instruction(elfg, code[write], 7);
 }
+
+static void emmit_amd64_out_inp (const unsigned long times, struct elfgen *elfg, const char mnemonic)
+{
+	static unsigned char code[] =
+	{
+		/*                ~~~~ this bytes indicates whether it is a write or read syscall (sysb) */
+		0x48, 0xc7, 0xc0, 0x00, 0x00, 0x00, 0x00,
+		0x48, 0xc7, 0xc7, 0x00, 0x00, 0x00, 0x00,
+		0x48, 0xc7, 0xc2, 0x01, 0x00, 0x00, 0x00,
+		0x4c, 0x89, 0xc6,
+		0x0f, 0x05
+	};
+
+	unsigned const char sysb = (mnemonic == '.');
+	code[ 3] = sysb;
+	code[10] = sysb;
+
+	for (register unsigned long i = 0; i < times; i++)
+	{
+		write_instruction(elfg, code, 26);
+	}
+}
+
