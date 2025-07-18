@@ -7,6 +7,11 @@
 
 #define BUFFER_LENGTH     2048
 
+#define IMM_8_BITS        1
+#define IMM_16_BITS       2
+#define IMM_32_BITS       4
+#define IMM_64_BITS       8
+
 struct elfgen
 {
 	FILE           *file;
@@ -16,6 +21,7 @@ struct elfgen
 	unsigned int   bsstarts;
 	unsigned short npages;
 	unsigned char  cellwidth;
+	enum arch      arch;
 };
 
 inline static void get_little_endian (const unsigned long imm, const unsigned short offset, const unsigned short immsz, unsigned char *inst)
@@ -29,7 +35,10 @@ inline static void get_little_endian (const unsigned long imm, const unsigned sh
 static void check_buffer_capacity (struct elfgen*, const unsigned char);
 static void write_instruction (struct elfgen*, const unsigned char*, const unsigned char);
 
-static void emmit_header (struct stream*, struct elfgen*);
+static void emmit_header (struct elfgen*);
+static void write_code (struct stream*, struct elfgen*);
+
+static void emmit_amd64_inc_dec (const unsigned long, struct elfgen*, const char);
 
 void elf_produce_elf (struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
 {
@@ -41,11 +50,14 @@ void elf_produce_elf (struct stream *stream, const char *filename, const unsigne
 		.npages    = (unsigned short) (stream->length / 4096) + 1,
 		.bsstarts  = 0x401000 + elfg.npages,
 		.cellwidth = cellSize,
+		.arch      = arch
 	};
 
 	if (!elfg.file) { fatal_file_ops(filename); }
 
-	emmit_header(stream, &elfg);
+	emmit_header(&elfg);
+	write_code(stream, &elfg);
+
 	if (fwrite(elfg.buffer.buffer, 1, elfg.buffer.at, elfg.file) != elfg.buffer.at)
 	{
 		fatal_file_ops(elfg.filename);
@@ -76,11 +88,61 @@ static void write_instruction (struct elfgen *elfg, const unsigned char *inst, c
 	}
 }
 
-static void emmit_header (struct stream *stream, struct elfgen *elfg)
+static void emmit_header (struct elfgen *elfg)
 {
-	unsigned char amd64[32] = { 0x4c, 0x8d, 0x84 };
-	get_little_endian((unsigned long) elfg->bsstarts, 3, 4, amd64);
-
-	write_instruction(elfg, amd64, 7);
+	if (elfg->arch == ARCH_AMD64)
+	{
+		unsigned char amd64[7] = { 0x4c, 0x8d, 0x84, 0x24 };
+		get_little_endian((unsigned long) elfg->bsstarts, 4, IMM_32_BITS, amd64);
+		write_instruction(elfg, amd64, 7);
+		return;
+	}
 }
 
+static void write_code (struct stream *stream, struct elfgen *elfg)
+{
+	for (size_t i = 0; i < stream->length; i++)
+	{
+		struct token *token = &stream->stream[i];
+		switch (token->meta.mnemonic)
+		{
+			case '+':
+			case '-': emmit_amd64_inc_dec(token->groupSize, elfg, token->meta.mnemonic); break;
+		}
+	}
+}
+
+static void emmit_amd64_inc_dec (const unsigned long times, struct elfgen *elfg, const char mnemonic)
+{
+	unsigned char code[][8] = {
+		{ 0x41, 0x80, 0x28,            (unsigned char) times  },
+		{ 0x66, 0x41, 0x81, 0x28,      0x00, 0x00             },
+		{ 0x41, 0x81, 0x28,            0x00, 0x00, 0x00, 0x00 },
+		{ 0x49, 0x81, 0x28,            0x00, 0x00, 0x00, 0x00 },
+
+		{ 0x41, 0x80, 0x00,            (unsigned char) times  },
+		{ 0x66, 0x41, 0x81, 0x00,      0x00, 0x00             },
+		{ 0x41, 0x81, 0x00,            0x00, 0x00, 0x00, 0x00 },
+		{ 0x49, 0x81, 0x00,            0x00, 0x00, 0x00, 0x00 }
+	};
+
+	const unsigned int write = ((mnemonic == '-') ? 0 : 4) + ((elfg->cellwidth == 8) ? 3 : (elfg->cellwidth >> 1));
+
+	if (elfg->cellwidth != 1)
+	{
+		get_little_endian(
+			times,
+			(elfg->cellwidth == 2) ? 4 : 3,
+			elfg->cellwidth,
+			code[write]
+		);
+	}
+
+	switch (elfg->cellwidth)
+	{
+		case 1: write_instruction(elfg, code[write], 4); break;
+		case 2: write_instruction(elfg, code[write], 6); break;
+		case 4:
+		case 8: write_instruction(elfg, code[write], 7); break;
+	}
+}
