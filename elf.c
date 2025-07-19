@@ -5,10 +5,11 @@
 #include "elf.h"
 #include "fatal.h"
 
-#define IMM_8_BITS        1
-#define IMM_16_BITS       2
-#define IMM_32_BITS       4
-#define IMM_64_BITS       8
+#define IMM_8_BITS     1
+#define IMM_16_BITS    2
+#define IMM_32_BITS    4
+#define IMM_64_BITS    8
+#define PAGE_SIZE_KB   4096
 
 #include <stdlib.h>
 
@@ -47,11 +48,11 @@ void elf_produce_elf (struct stream *stream, const char *filename, const unsigne
 {
 	struct elfgen elfg =
 	{
-		.buffer.cap     = 4096,
-		.buffer.buffer  = (unsigned char*) calloc(elfg.buffer.cap, sizeof(unsigned char)),
+		.buffer.cap     = PAGE_SIZE_KB,
+		.buffer.buffer  = (unsigned char*) calloc(PAGE_SIZE_KB, sizeof(unsigned char)),
 		.ujmps.at       = (unsigned long*) calloc(stream->nonested, sizeof(unsigned long)),
 		.offset         = 0x401000,
-		.npages         = ((unsigned int) stream->length / 4096) + 1,			// bad calculated XXX
+		.npages         = ((unsigned int) stream->length / PAGE_SIZE_KB) + 1,			// bad calculated XXX
 		.cellwidth      = cellSize,
 		.arch           = arch
 	};
@@ -60,7 +61,7 @@ void elf_produce_elf (struct stream *stream, const char *filename, const unsigne
 	 * for placing the memory (in this case) we will pick 0x401000 + number of pages used
 	 * for writing the code, each page is 4 kB
 	 */
-	elfg.bsstarts = 0x401000 + elfg.npages * 4096;
+	elfg.bsstarts = 0x401000 + elfg.npages * PAGE_SIZE_KB;
 
 	CHECK_POINTER(elfg.buffer.buffer, "reserving space for bytecode");
 	CHECK_POINTER(elfg.ujmps.at, "unresolved jumps, internal stuff my man");
@@ -68,9 +69,6 @@ void elf_produce_elf (struct stream *stream, const char *filename, const unsigne
 	emmit_header(&elfg);
 	resolve_stream(stream, &elfg);
 	open_and_write_elf(&elfg, filename, tapeSize);
-
-	//free(elfg.buffer.buffer);
-	//free(elfg.ujmps.at);
 }
 
 static void open_and_write_elf (struct elfgen *elfg, const char *filename, const unsigned int tapeSize)
@@ -81,7 +79,7 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		fatal_file_ops(filename);
 	}
 
-	const unsigned long bytes = 64 + 56;
+	const unsigned long written = 64 + 56;
 	unsigned char elf[64 + 56] =
 	{
 		/* magic number         */	0x7f, 0x45, 0x4c, 0x46,
@@ -94,7 +92,7 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		/* its a exec file      */	0x20, 0x00,
 		/* target arch          */	0x3e, 0x00,
 		/* ELF version          */	0x01, 0x00, 0x00, 0x00,
-		/* Entry point          */	0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		/* Entry point          */	0x00, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* P. Header table at   */	0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* S. Header table at   */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* e_flags              */	0x00, 0x00, 0x00, 0x00,
@@ -108,20 +106,24 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		/* type of segment      */	0x01, 0x00, 0x00, 0x00,
 		/* permissions          */	0x05, 0x00, 0x00, 0x00,
 		/* segment's offset     */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* virtual address      */	0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		/* virtual address      */	0x00, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* physical address     */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* bytes within file    */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* bytes within v. addr */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* aligment             */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+		/* aligment             */	0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 
 	get_little_endian(elfg->buffer.at, 96, IMM_64_BITS, elf);
 	get_little_endian(elfg->buffer.at + tapeSize, 104, IMM_64_BITS, elf);
 
-	if (fwrite(elf, 1, bytes, file) != bytes)
+	fwrite(elf, 1, written, file);
+
+	const unsigned char zeroes[] = {0};
+	for (unsigned long i = written; i < PAGE_SIZE_KB; i++)
 	{
-		fatal_file_ops(filename);
+		fwrite(zeroes, 1, 1, file);
 	}
+
 	if (fwrite(elfg->buffer.buffer, 1, elfg->buffer.at, file) != elfg->buffer.at)
 	{
 		fatal_file_ops(filename);
@@ -133,7 +135,7 @@ static void write_instruction (struct elfgen *elfg, const unsigned char *inst, c
 {
 	if ((elfg->buffer.at + length) >= elfg->buffer.cap)
 	{
-		elfg->buffer.cap += 4096;
+		elfg->buffer.cap += PAGE_SIZE_KB;
 		elfg->buffer.buffer = (unsigned char*) realloc(elfg->buffer.buffer, elfg->buffer.cap);
 		CHECK_POINTER(elfg->buffer.buffer, "reserving space for bytecode");
 	}
@@ -227,7 +229,7 @@ static void emmit_amd64_nxt_prv (const unsigned long times, struct elfgen *elfg,
 
 static void emmit_amd64_out_inp (const unsigned long times, struct elfgen *elfg, const char mnemonic)
 {
-	static unsigned char code[] =
+	unsigned char code[] =
 	{
 		/*                ~~~~ this bytes indicates whether it is a write or read syscall (sysb) */
 		0x48, 0xc7, 0xc0, 0x00, 0x00, 0x00, 0x00,
