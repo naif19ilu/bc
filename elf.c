@@ -21,8 +21,6 @@ struct elfgen
 	struct         { unsigned char *buffer; size_t at, cap; } buffer;
 	struct         { unsigned long *at, nth; } ujmps;
 	unsigned long  offset;
-	unsigned int   bsstarts;
-	unsigned int   npages;
 	unsigned char  cellwidth;
 	enum arch      arch;
 };
@@ -35,10 +33,10 @@ inline static void get_little_endian (const unsigned long imm, const unsigned sh
 	}
 }
 
-static void open_and_write_elf (struct elfgen*, const char*, const unsigned int);
+static void open_and_write_elf (struct elfgen*, const char*);
 static void write_instruction (struct elfgen*, const unsigned char*, const unsigned char);
 
-static void emmit_header (struct elfgen*);
+static void emmit_header (struct elfgen*, const unsigned int);
 static void resolve_stream (struct stream*, struct elfgen*);
 
 static void emmit_amd64_inc_dec (const unsigned long, struct elfgen*, const char);
@@ -54,33 +52,34 @@ void elf_produce_elf (struct stream *stream, const char *filename, const unsigne
 		.buffer.cap     = PAGE_SIZE_KB,
 		.buffer.buffer  = (unsigned char*) calloc(PAGE_SIZE_KB, sizeof(unsigned char)),
 		.ujmps.at       = (unsigned long*) calloc(stream->nonested, sizeof(unsigned long)),
-		.offset         = 0x401000,
-		.npages         = ((unsigned int) stream->length / PAGE_SIZE_KB) + 1,			// bad calculated XXX
+		.offset         = 0x400000,
 		.cellwidth      = cellSize,
 		.arch           = arch
 	};
 
-	/* default position to place the first instruction is at 0x401000 (text section somewhat)
-	 * for placing the memory (in this case) we will pick 0x401000 + number of pages used
-	 * for writing the code, each page is 4 kB
-	 */
-	elfg.bsstarts = 0x401000 + elfg.npages * PAGE_SIZE_KB;
-
 	CHECK_POINTER(elfg.buffer.buffer, "reserving space for bytecode");
 	CHECK_POINTER(elfg.ujmps.at, "unresolved jumps, internal stuff my man");
 
-	emmit_header(&elfg);
+	emmit_header(&elfg, tapeSize);
 	resolve_stream(stream, &elfg);
-	open_and_write_elf(&elfg, filename, tapeSize);
+	open_and_write_elf(&elfg, filename);
 }
 
-static void open_and_write_elf (struct elfgen *elfg, const char *filename, const unsigned int tapeSize)
+static void open_and_write_elf (struct elfgen *elfg, const char *filename)
 {
 	FILE *file = fopen(filename, "wb");
 	if (!file)
 	{
 		fatal_file_ops(filename);
 	}
+
+	const unsigned char exit[] =
+	{
+		0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00,
+		0x48, 0xc7, 0xc7, 0x3c, 0x00, 0x00, 0x00,  // TODO: set rdi =0
+		0x0f, 0x05
+	};
+	write_instruction(elfg, exit, 16);
 
 	unsigned char elf[ELF_HEADER_LEN + ELF_PROHED_LEN] =
 	{
@@ -94,7 +93,7 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		/* its a exec file      */	0x02, 0x00,
 		/* target arch          */	0x3e, 0x00,
 		/* ELF version          */	0x01, 0x00, 0x00, 0x00,
-		/* Entry point          */	0x00, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+		/* Entry point          */	0x78, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* P. Header table at   */	0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* S. Header table at   */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* e_flags              */	0x00, 0x00, 0x00, 0x00,
@@ -106,22 +105,28 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		/* e_shstrndx           */	0x00, 0x00,
 
 		/* type of segment      */	0x01, 0x00, 0x00, 0x00,
-		/* permissions          */	0x05, 0x00, 0x00, 0x00,
+		/* permissions          */	0x07, 0x00, 0x00, 0x00,
 		/* segment's offset     */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* virtual address      */	0x00, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
+		/* virtual address      */	0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* physical address     */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* bytes within file    */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		/* bytes within v. addr */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* aligment             */	0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+		/* aligment             */	0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	};
 
+	for (size_t i = 0; i < elfg->buffer.at; i++)
+	{
+		printf("%.2x ", elfg->buffer.buffer[i]);
+	}
+	puts("-*-");
+
 	get_little_endian(elfg->buffer.at, 96 , IMM_64_BITS, elf);
-	get_little_endian(elfg->buffer.at + tapeSize, 104, IMM_64_BITS, elf);
+	get_little_endian(elfg->buffer.at, 104, IMM_64_BITS, elf);
 
+	printf("len: %ld\n", elfg->buffer.at);
 	printf("elf: %ld\n", fwrite(elf, 1, ELF_HEADER_LEN + ELF_PROHED_LEN, file));
-	printf("bco: %ld\n", fwrite(elfg->buffer.buffer, 1, elfg->buffer.at, file));
+	printf("bco: %ld %lx\n", fwrite(elfg->buffer.buffer, 1, elfg->buffer.at, file), elfg->offset);
 
-	// TODO emmit exit syscall
 	if (fclose(file)) { fatal_file_ops(filename); }
 }
 
@@ -141,15 +146,23 @@ static void write_instruction (struct elfgen *elfg, const unsigned char *inst, c
 	}
 }
 
-static void emmit_header (struct elfgen *elfg)
+static void emmit_header (struct elfgen *elfg, const unsigned int tapeSize)
 {
-	if (elfg->arch == ARCH_AMD64)
+	unsigned char header[] =
 	{
-		unsigned char amd64[8] = { 0x4c, 0x8d, 0x84, 0x24 };
-		get_little_endian((unsigned long) elfg->bsstarts, 4, IMM_32_BITS, amd64);
-		write_instruction(elfg, amd64, 8);
-		return;
-	}
+		/* push rbp
+		 * mov  rbp, rsp
+		 * subq rsp, tapeSize
+		 * lea  r8, [rbp]
+		 */
+		0x55,
+		0x48, 0x89, 0xe5,
+		0x48, 0x81, 0xec, 0x00, 0x00, 0x00, 0x00,
+		0x4c, 0x8d, 0x45, 0x00
+	};
+
+	get_little_endian((unsigned long) tapeSize, 7, IMM_32_BITS, header);
+	write_instruction(elfg, header, 15);
 }
 
 static void resolve_stream (struct stream *stream, struct elfgen *elfg)
