@@ -5,11 +5,14 @@
 #include "elf.h"
 #include "fatal.h"
 
-#define IMM_8_BITS     1
-#define IMM_16_BITS    2
-#define IMM_32_BITS    4
-#define IMM_64_BITS    8
-#define PAGE_SIZE_KB   4096
+#define IMM_8_BITS    1
+#define IMM_16_BITS   2
+#define IMM_32_BITS   4
+#define IMM_64_BITS   8
+
+#define PAGE_SIZE_KB     4096
+#define ELF_HEADER_LEN   64
+#define ELF_PROHED_LEN   56
 
 #include <stdlib.h>
 
@@ -79,8 +82,7 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		fatal_file_ops(filename);
 	}
 
-	const unsigned long written = 64 + 56;
-	unsigned char elf[64 + 56] =
+	unsigned char elf[ELF_HEADER_LEN + ELF_PROHED_LEN] =
 	{
 		/* magic number         */	0x7f, 0x45, 0x4c, 0x46,
 		/* 64 or 32 bit         */	0x02,
@@ -89,7 +91,7 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		/* system ABI           */	0x00,
 		/* ABI stuff            */	0x00,
 		/* Padding              */	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* its a exec file      */	0x20, 0x00,
+		/* its a exec file      */	0x02, 0x00,
 		/* target arch          */	0x3e, 0x00,
 		/* ELF version          */	0x01, 0x00, 0x00, 0x00,
 		/* Entry point          */	0x00, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -113,21 +115,13 @@ static void open_and_write_elf (struct elfgen *elfg, const char *filename, const
 		/* aligment             */	0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 	};
 
-	get_little_endian(elfg->buffer.at, 96, IMM_64_BITS, elf);
+	get_little_endian(elfg->buffer.at, 96 , IMM_64_BITS, elf);
 	get_little_endian(elfg->buffer.at + tapeSize, 104, IMM_64_BITS, elf);
 
-	fwrite(elf, 1, written, file);
+	printf("elf: %ld\n", fwrite(elf, 1, ELF_HEADER_LEN + ELF_PROHED_LEN, file));
+	printf("bco: %ld\n", fwrite(elfg->buffer.buffer, 1, elfg->buffer.at, file));
 
-	const unsigned char zeroes[] = {0};
-	for (unsigned long i = written; i < PAGE_SIZE_KB; i++)
-	{
-		fwrite(zeroes, 1, 1, file);
-	}
-
-	if (fwrite(elfg->buffer.buffer, 1, elfg->buffer.at, file) != elfg->buffer.at)
-	{
-		fatal_file_ops(filename);
-	}
+	// TODO emmit exit syscall
 	if (fclose(file)) { fatal_file_ops(filename); }
 }
 
