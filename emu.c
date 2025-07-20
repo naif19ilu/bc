@@ -13,8 +13,8 @@ struct Memory
 	void          *memory;
 	unsigned long max;
 	unsigned int  at;
-	unsigned int  tapeSize;
-	unsigned char cellSize;
+	unsigned int  tapesz;
+	unsigned char cellsz;
 	bool          safe;
 };
 
@@ -39,12 +39,12 @@ inline static void display_16 (struct Memory*, const unsigned int, const unsigne
 inline static void display_32 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 inline static void display_64 (struct Memory*, const unsigned int, const unsigned int, const unsigned int);
 
-void emu_emulate (const struct stream *stream, const unsigned int tapeSize, const unsigned char cellSize, const bool safeMode, const unsigned int offset, const unsigned int display, const unsigned int group)
+void emu_emulate (const struct stream *stream, const unsigned int tapesz, const unsigned char cellsz, const bool safeMode, const unsigned int offset, const unsigned int display, const unsigned int group)
 {
 	struct Memory mem = {
 		.at = 0,
-		.tapeSize = tapeSize,
-		.cellSize = cellSize,
+		.tapesz = tapesz,
+		.cellsz = cellsz,
 		.safe     = safeMode
 	};
 
@@ -54,12 +54,12 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 	incdec_t inc, dec;
 	display_t dis;
 
-	switch (cellSize)
+	switch (cellsz)
 	{
-		case 1: { mem.memory = (unsigned char*)  calloc(tapeSize, sizeof(unsigned char));  mem.max = UCHAR_MAX; inc = handle_add8 ; dec = handle_dec8 ; dis = display_8 ; break; }
-		case 2: { mem.memory = (unsigned short*) calloc(tapeSize, sizeof(unsigned short)); mem.max = USHRT_MAX; inc = handle_add16; dec = handle_dec16; dis = display_16; break; }
-		case 4: { mem.memory = (unsigned int*)   calloc(tapeSize, sizeof(unsigned int));   mem.max = UINT_MAX;  inc = handle_add32; dec = handle_dec32; dis = display_32; break; }
-		case 8: { mem.memory = (unsigned long*)  calloc(tapeSize, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; dis = display_64; break; }
+		case 1: { mem.memory = (unsigned char*)  calloc(tapesz, sizeof(unsigned char));  mem.max = UCHAR_MAX; inc = handle_add8 ; dec = handle_dec8 ; dis = display_8 ; break; }
+		case 2: { mem.memory = (unsigned short*) calloc(tapesz, sizeof(unsigned short)); mem.max = USHRT_MAX; inc = handle_add16; dec = handle_dec16; dis = display_16; break; }
+		case 4: { mem.memory = (unsigned int*)   calloc(tapesz, sizeof(unsigned int));   mem.max = UINT_MAX;  inc = handle_add32; dec = handle_dec32; dis = display_32; break; }
+		case 8: { mem.memory = (unsigned long*)  calloc(tapesz, sizeof(unsigned long));  mem.max = ULONG_MAX; inc = handle_add64; dec = handle_dec64; dis = display_64; break; }
 	}
 
 	CHECK_POINTER(mem.memory, "reserving space to emulate memory");
@@ -93,7 +93,7 @@ void emu_emulate (const struct stream *stream, const unsigned int tapeSize, cons
 
 inline static void handle_next (struct token *t, struct Memory *mem)
 {
-	if (mem->safe && ((mem->at + t->groupSize) > mem->tapeSize))
+	if (mem->safe && ((mem->at + t->groupSize) > mem->tapesz))
 	{
 		fatal_source_fatal(FATAL_BREAKDOWN_TOKEN(t), FATAL_SRC_SAFE_MODE_NEXT_OVERFLOW, FATAL_ISNT_MULTIPLE);
 	}

@@ -56,10 +56,10 @@ struct bc
 	struct
 	{
 		unsigned int   offset;
-		unsigned int   tapeSize;
+		unsigned int   tapesz;
 		unsigned int   display;
 		unsigned int   group;
-		unsigned char  cellSize;
+		unsigned char  cellsz;
 		char           *compile;
 		char           *output;
 		char           *source;

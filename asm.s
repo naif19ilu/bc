@@ -3,6 +3,6 @@
 .globl _start
 
 _start:
-	jz	LE0
-LE0:
-	jmp	_start
+	movq	$60, %rax
+	movq	$60, %rdi
+	syscall

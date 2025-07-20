@@ -6,6 +6,6 @@
 #define BC_ELF_H
 #include "bc.h"
 
-void elf_produce_elf (struct stream*, const char*, const unsigned int, const unsigned char, const enum arch);
+void elf_produce (const struct stream*, const char*);
 
 #endif

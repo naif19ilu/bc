@@ -23,4 +23,4 @@ arm: a.s
 	aarch64-linux-gnu-ld	a.out -o asm
 	qemu-aarch64 ./asm
 clear:
-	rm	-rf $(objs) $(final) a.s a.out asm
+	rm	-rf $(objs) $(final) a.s a.out asm && clear

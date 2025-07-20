@@ -43,13 +43,13 @@ static const char *const Footers[] =
 	"\tsvc\t#0\n"
 };
 
-static void get_arch_family (struct asmgen *asmg, const unsigned char cellSize, const enum arch arch)
+static void get_arch_family (struct asmgen *asmg, const unsigned char cellsz, const enum arch arch)
 {
-	asmg->cellwidth = cellSize;
+	asmg->cellwidth = cellsz;
 
 	if (arch == ARCH_AMD64)
 	{
-		switch (cellSize)
+		switch (cellsz)
 		{
 			case 1: { asmg->amd.reg = "al" ; asmg->amd.prefix = 'b'; break; }
 			case 2: { asmg->amd.reg = "ax" ; asmg->amd.prefix = 'w'; break; }
@@ -59,7 +59,7 @@ static void get_arch_family (struct asmgen *asmg, const unsigned char cellSize, 
 		return;
 	}
 
-	switch (cellSize)
+	switch (cellsz)
 	{
 		case 1: { asmg->arm.load = "ldrb"; asmg->arm.store = "strb"; asmg->arm.prefix = 'w'; break; }
 		case 2: { asmg->arm.load = "ldrh"; asmg->arm.store = "strh"; asmg->arm.prefix = 'w'; break; }
@@ -92,13 +92,13 @@ static void arm64_emmit_inp (const struct asmgen*, const unsigned long);
 static void arm64_emmit_lbr (const struct asmgen*, const unsigned long);
 static void arm64_emmit_rbr (const struct asmgen*, const unsigned long);
 
-void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapeSize, const unsigned char cellSize, const enum arch arch)
+void asm_gen_asm (const struct stream *stream, const char *filename, const unsigned int tapesz, const unsigned char cellsz, const enum arch arch)
 {
 	struct asmgen asmg = { .file = fopen(filename, "w") };
 	if (!asmg.file) { fatal_file_ops(filename); }
 
-	get_arch_family(&asmg, cellSize, arch);
-	fprintf(asmg.file, Headers[arch], (unsigned long) (tapeSize * cellSize));
+	get_arch_family(&asmg, cellsz, arch);
+	fprintf(asmg.file, Headers[arch], (unsigned long) (tapesz * cellsz));
 
 	typedef void (*emmiter_t) (const struct asmgen*, const unsigned long);
 

@@ -20,13 +20,13 @@ int main (int argc, char **argv)
 	struct bc bc;
 	memset(&bc, 0, sizeof(bc));
 
-	bc.args.output   = BC_DEFAULT_o;
-	bc.args.source   = BC_DEFAULT_S;
-	bc.args.tapeSize = BC_DEFAULT_T;
-	bc.args.cellSize = BC_DEFAULT_C;
-	bc.args.offset   = BC_DEFAULT_O;
-	bc.args.display  = BC_DEFAULT_d;
-	bc.args.group    = BC_DEFAULT_g;
+	bc.args.output  = BC_DEFAULT_o;
+	bc.args.source  = BC_DEFAULT_S;
+	bc.args.tapesz  = BC_DEFAULT_T;
+	bc.args.cellsz  = BC_DEFAULT_C;
+	bc.args.offset  = BC_DEFAULT_O;
+	bc.args.display = BC_DEFAULT_d;
+	bc.args.group   = BC_DEFAULT_g;
 
 	char *arch = "amd64";
 	struct CxaFlag flags[] =
@@ -34,8 +34,8 @@ int main (int argc, char **argv)
 		CXA_SET_STR("compile", "source to be compiled",                                         &bc.args.compile,  CXA_FLAG_TAKER_YES, 'c'),
 		CXA_SET_STR("output",  "name for the objfile (a.out default)",                          &bc.args.output,   CXA_FLAG_TAKER_MAY, 'o'),
 		CXA_SET_STR("source",  "produce asm code, no ELF (a.out default)",                      &bc.args.source,   CXA_FLAG_TAKER_MAY, 'S'),
-		CXA_SET_INT("tape",    "tape size (30000 default)",                                     &bc.args.tapeSize, CXA_FLAG_TAKER_MAY, 'T'),
-		CXA_SET_INT("cell",    "cell size (1 B default. 1,2,4,8 B)",                            &bc.args.cellSize, CXA_FLAG_TAKER_MAY, 'C'),
+		CXA_SET_INT("tape",    "tape size (30000 default)",                                     &bc.args.tapesz, CXA_FLAG_TAKER_MAY, 'T'),
+		CXA_SET_INT("cell",    "cell size (1 B default. 1,2,4,8 B)",                            &bc.args.cellsz, CXA_FLAG_TAKER_MAY, 'C'),
 		CXA_SET_CHR("usage",   "displays this message",                                         NULL,              CXA_FLAG_TAKER_NON, 'u'),
 		CXA_SET_CHR("safe",    "enables safe mode",                                             NULL,              CXA_FLAG_TAKER_NON, 's'),
 		CXA_SET_CHR("emu-mem", "emulates memory (disabled by default)",                         NULL,              CXA_FLAG_TAKER_NON, 'E'),
@@ -64,16 +64,16 @@ int main (int argc, char **argv)
 
 	if (bc.args.emulate || bc.args.safeMode)
 	{
-		emu_emulate(&bc.stream, bc.args.tapeSize, bc.args.cellSize, bc.args.safeMode, bc.args.offset, bc.args.display, bc.args.group);
+		emu_emulate(&bc.stream, bc.args.tapesz, bc.args.cellsz, bc.args.safeMode, bc.args.offset, bc.args.display, bc.args.group);
 		return 0;
 	}
 	if (flags[2].meta & CXA_FLAG_SEEN_MASK)
 	{
-		asm_gen_asm(&bc.stream, bc.args.source, bc.args.tapeSize, bc.args.cellSize, bc.args.arch);
+		asm_gen_asm(&bc.stream, bc.args.source, bc.args.tapesz, bc.args.cellsz, bc.args.arch);
 		return 0;
 	}
 
-	elf_produce_elf(&bc.stream, bc.args.output, bc.args.tapeSize, bc.args.cellSize, bc.args.arch);
+	elf_produce(&bc.stream, bc.args.output);
 	return 0;
 }
 
@@ -106,15 +106,15 @@ static void check_arguments (struct bc *bc)
 {
 	static const unsigned short cellkeyMask = ((1 << 1) | (1 << 2) | (1 << 4) | (1 << 8));
 
-	if ((cellkeyMask & (1 << bc->args.cellSize)) == 0)
+	if ((cellkeyMask & (1 << bc->args.cellsz)) == 0)
 	{
-		fatal_nonfatal_warn(FATAL_WARN_INVALID_C, bc->args.cellSize, BC_DEFAULT_C);
-		bc->args.cellSize = BC_DEFAULT_C;
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_C, bc->args.cellsz, BC_DEFAULT_C);
+		bc->args.cellsz = BC_DEFAULT_C;
 	}
-	if (bc->args.tapeSize < 30000)
+	if (bc->args.tapesz < 30000)
 	{
-		fatal_nonfatal_warn(FATAL_WARN_INVALID_T, bc->args.tapeSize, BC_DEFAULT_T);
-		bc->args.tapeSize = BC_DEFAULT_T;
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_T, bc->args.tapesz, BC_DEFAULT_T);
+		bc->args.tapesz = BC_DEFAULT_T;
 	}
 
 	if (bc->args.safeMode)
@@ -122,16 +122,16 @@ static void check_arguments (struct bc *bc)
 		return;
 	}
 
-	if (bc->args.offset > bc->args.tapeSize)
+	if (bc->args.offset > bc->args.tapesz)
 	{
-		fatal_nonfatal_warn(FATAL_WARN_INVALID_OT, bc->args.offset, bc->args.tapeSize);
-		bc->args.tapeSize = BC_DEFAULT_T;
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_OT, bc->args.offset, bc->args.tapesz);
+		bc->args.tapesz = BC_DEFAULT_T;
 		bc->args.offset   = BC_DEFAULT_O;
 	}
-	if (bc->args.display > bc->args.tapeSize || ((bc->args.display + bc->args.offset) > bc->args.tapeSize))
+	if (bc->args.display > bc->args.tapesz || ((bc->args.display + bc->args.offset) > bc->args.tapesz))
 	{
-		fatal_nonfatal_warn(FATAL_WARN_INVALID_dT, bc->args.display, bc->args.tapeSize);
-		bc->args.tapeSize = BC_DEFAULT_T;
+		fatal_nonfatal_warn(FATAL_WARN_INVALID_dT, bc->args.display, bc->args.tapesz);
+		bc->args.tapesz = BC_DEFAULT_T;
 		bc->args.display  = BC_DEFAULT_d;
 	}
 	if (bc->args.group == 0)
