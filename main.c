@@ -73,7 +73,7 @@ int main (int argc, char **argv)
 		return 0;
 	}
 
-	elf_produce(&bc.stream, bc.args.output);
+	elf_produce(&bc.stream, bc.args.output, bc.args.tapesz, bc.args.cellsz);
 	return 0;
 }
 
