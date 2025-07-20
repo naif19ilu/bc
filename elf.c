@@ -9,8 +9,8 @@
 
 #define BUFFER_GROWTH_FACTOR    2048
 
-#define ENTRY_VIRTUAL_ADDRESS   0x101000
-#define P_OFFSET_PROG_HEADER_1  0x1000
+#define ENTRY_VIRTUAL_ADDRESS   0x101078
+#define P_OFFSET_PROG_HEADER_1  0x78
 
 #define ELF_HEADER_LENGTH       64
 #define PROGRAM_HEADER_LENGTH   56
@@ -132,11 +132,8 @@ static void dump_object_code (struct objcode *obj, const char *filename)
 		fatal_file_ops(filename);
 	}
 
-	const unsigned char zeropadd[ELF_PADDING_LENGTH] = {0};
-
-	if (fwrite(zeropadd, 1, (ELF_PADDING_LENGTH), file) != ELF_PADDING_LENGTH) { fatal_file_ops(filename); }
-	if (fwrite(obj->buffer, 1, obj->len, file) != obj->len)                    { fatal_file_ops(filename); }
-	if (fclose(file))                                                          { fatal_file_ops(filename); }
+	if (fwrite(obj->buffer, 1, obj->len, file) != obj->len) { fatal_file_ops(filename); }
+	if (fclose(file))                                       { fatal_file_ops(filename); }
 }
 
 static void write_object_code (struct objcode *obj, const unsigned char *instruction, const size_t length)
