@@ -31,32 +31,63 @@ struct objcode
 	size_t        len;
 	size_t        cap;
 	unsigned long vrip;
+	enum immxxsz  immsz;
 };
 
-struct elfgen
+struct amd64incdec
 {
-	struct objcode obj;
+	unsigned char source[14];
+	const size_t  immOffset;
+	const size_t  length;
 };
 
-static void init_elf_generator (struct elfgen*);
+static void init_elf_generator (struct objcode*, const unsigned char);
 static void dump_object_code (struct objcode*, const char*, const unsigned int);
 
 static void write_object_code (struct objcode*, const unsigned char*, const size_t);
 static void insert_immxx_into_instruction (const unsigned long, size_t, const enum immxxsz, unsigned char*);
 
+static void emmit_amd64_inc_dec (struct objcode*, const unsigned long, const char);
+
 void elf_produce (const struct stream *stream, const char *filename, const unsigned int tapesz, const unsigned char cellsz)
 {
-	struct elfgen elfg;
-	init_elf_generator(&elfg);
+	struct objcode obj;
+	init_elf_generator(&obj, cellsz);
 
-	dump_object_code(&elfg.obj, filename, tapesz);
+	for (size_t i = 0; i < stream->length; i++)
+	{
+		const struct token *token = &stream->stream[i];
+		const char mnemonic = token->meta.mnemonic;
+
+		switch (mnemonic)
+		{
+			case '+':
+			case '-': emmit_amd64_inc_dec(&obj, token->groupSize, mnemonic); break;
+		}
+	}
+
+	dump_object_code(&obj, filename, tapesz);
 }
 
-static void init_elf_generator (struct elfgen *elfg)
+static void init_elf_generator (struct objcode *obj, const unsigned char cellsz)
 {
-	elfg->obj.cap    = BUFFER_GROWTH_FACTOR;
-	elfg->obj.buffer = (unsigned char*) calloc(BUFFER_GROWTH_FACTOR, sizeof(*elfg->obj.buffer));
-	elfg->obj.vrip   = ENTRY_VIRTUAL_ADDRESS;
+	obj->cap    = BUFFER_GROWTH_FACTOR;
+	obj->buffer = (unsigned char*) calloc(BUFFER_GROWTH_FACTOR, sizeof(*obj->buffer));
+
+	CHECK_POINTER(obj->buffer, "reserving space for object code");
+	obj->vrip   = ENTRY_VIRTUAL_ADDRESS;
+
+	const unsigned char intro[] =
+	{
+		/* lea r8, [rip + <add>]
+		 * <add> will be determinated at 'dump_object_code' function once
+		 * the compiler knows how big the .text section is
+		 */
+		0x4c, 0x8d, 0x05, 0x00, 0x00, 0x00, 0x00
+	};
+
+	write_object_code(obj, intro, sizeof(intro));
+	obj->immsz = (enum immxxsz) cellsz;
 }
 
 static void dump_object_code (struct objcode *obj, const char *filename, const unsigned int tapesz)
@@ -67,17 +98,25 @@ static void dump_object_code (struct objcode *obj, const char *filename, const u
 		fatal_file_ops(filename);
 	}
 
-	static const unsigned char outro[] =
+	const unsigned char outro[] =
 	{
 		/* mov rax, 60
 		 * mov rdi, 0
 		 * syscall
 		 */
 		0x48, 0xc7, 0xc0, 0x3c, 0x00, 0x00, 0x00,
-		0x48, 0xc7, 0xc7, 0x3c, 0x00, 0x00, 0x00,
+		0x48, 0xc7, 0xc7, 0x00, 0x00, 0x00, 0x00,
 		0x0f, 0x05
 	};
 	write_object_code(obj, outro, sizeof(outro));
+
+	/* We need to modify the address provided in 'init_elf_generator' function.
+	 * The compiler can define the offset since it already knows how big objcode is.
+	 *
+	 * Offset is three since at fourth byte within buffer is where the offset is defined
+	 * (see 'init_elf_generator.intro')
+	 */
+	insert_immxx_into_instruction(obj->len, 3, IMM_32, obj->buffer);
 
 	unsigned char elfprelude[] =
 	{
@@ -125,6 +164,8 @@ static void dump_object_code (struct objcode *obj, const char *filename, const u
 	insert_immxx_into_instruction(obj->len,               96 , IMM_64, elfprelude);
 	insert_immxx_into_instruction(obj->len + tapesz,      104, IMM_64, elfprelude);
 
+	printf("object code length: %ld\n", obj->len);
+
 	if (fwrite(elfprelude, 1, sizeof(elfprelude), file) != ELF_PRELUDE_LENGTH)
 	{
 		fatal_file_ops(filename);
@@ -155,4 +196,102 @@ static void insert_immxx_into_instruction (const unsigned long imm, size_t offse
 	{
 		buff[offset++] = ((imm >> (i * 8)) & 0xff);
 	}
+}
+
+static void emmit_amd64_inc_dec (struct objcode *obj, const unsigned long imm, const char class)
+{	
+	static const struct amd64incdec instructions[8] =
+	{
+		{
+			/* subb [r8], imm8
+			 * */
+			.source = {
+				0x41, 0x80, 0x28, 0x00
+			},
+			.immOffset = 3,
+			.length    = 4,
+		},
+		{
+
+			/* movw r9w, [r8]
+			 * subw r9w, imm16
+			 * movw [r8], r9w
+			 */
+			.source = {
+				0x66, 0x45, 0x8b, 0x08,
+				0x66, 0x41, 0x81, 0xe9, 0x00, 0x00,
+				0x66, 0x45, 0x89, 0x08
+			},
+			.immOffset = 8,
+			.length    = 14
+		},
+		{
+			/* subd [r8], imm32
+			 */
+			.source = {
+				0x41, 0x81, 0x28, 0x00, 0x00, 0x00, 0x00
+			},
+			.immOffset = 3,
+			.length = 7
+		},
+		{
+			/* movq rax, imm64
+			 * subq [r8], rax
+			 */
+			.source = {
+				0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x49, 0x29, 0x00
+			},
+			.immOffset = 2,
+			.length = 13
+		},
+		{
+			/* addb [r8], imm8
+			 */
+			.source = {
+				0x41, 0x80, 0x00, 0x00,
+			},
+			.immOffset = 3,
+			.length    = 4,
+		},
+		{
+			/* movw r9w, [r8]
+			 * addw r9w, imm16
+			 * movw [r8], r9w
+			 */
+			.source = {
+				0x66, 0x45, 0x8b, 0x08,
+				0x66, 0x41, 0x81, 0xc1, 0x00, 0x00,
+				0x66, 0x45, 0x89, 0x08
+			},
+			.immOffset = 8,
+			.length    = 14
+		},
+		{
+			/* addd [r8], imm32
+			 */
+			.source = {
+				0x41, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00
+			},
+			.immOffset = 3,
+			.length = 7
+		},
+		{
+			/* movq rax, imm64
+			 * addq [r8], rax
+			 */
+			.source = {
+				0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x49, 0x01, 0x00
+			},
+			.immOffset = 2,
+			.length = 13
+		}
+	};
+
+	const unsigned int pick = ((class == '-') ? 0 : 4) + ((obj->immsz == 8) ? 3 : (obj->immsz >> 1));
+	struct amd64incdec instruction = instructions[pick];
+
+	insert_immxx_into_instruction(imm, instruction.immOffset, obj->immsz, instruction.source);
+	write_object_code(obj, instruction.source, instruction.length);
 }
