@@ -27,12 +27,21 @@ enum immxxsz
 	IMM_64 = 8
 };
 
+struct jump
+{
+	unsigned long beforeJmp;
+	unsigned long afterJmp;
+	unsigned long offset;
+};
+
 struct objcode
 {
+	struct jump   *jmps;
 	unsigned char *buffer;
 	size_t        len;
 	size_t        cap;
 	unsigned long vrip;
+	unsigned long jmp;
 	enum immxxsz  immsz;
 };
 
@@ -43,7 +52,7 @@ struct amd64inst
 	const size_t  length;
 };
 
-static void init_elf_generator (struct objcode*, const unsigned char);
+static void init_elf_generator (struct objcode*, const unsigned long, const unsigned char);
 static void dump_object_code (struct objcode*, const char*, const unsigned int);
 
 static void write_object_code (struct objcode*, const unsigned char*, const size_t);
@@ -53,11 +62,12 @@ static void emmit_amd64_inc_dec (struct objcode*, const unsigned long, const cha
 static void emmit_amd64_nxt_prv (struct objcode*, const unsigned long, const char);
 
 static void emmit_amd64_out_inp (struct objcode*, const unsigned long, const char);
+static void emmit_amd64_branches (struct objcode*, const char);
 
 void elf_produce (const struct stream *stream, const char *filename, const unsigned int tapesz, const unsigned char cellsz)
 {
-	struct objcode obj;
-	init_elf_generator(&obj, cellsz);
+	struct objcode obj = {0};
+	init_elf_generator(&obj, stream->nonested, cellsz);
 
 	for (size_t i = 0; i < stream->length; i++)
 	{
@@ -74,19 +84,22 @@ void elf_produce (const struct stream *stream, const char *filename, const unsig
 
 			case ',':
 			case '.': emmit_amd64_out_inp(&obj, token->groupSize, mnemonic); break;
+
+			case '[':
+			case ']': emmit_amd64_branches(&obj, mnemonic); break;
 		}
 	}
 
 	dump_object_code(&obj, filename, tapesz);
 }
 
-static void init_elf_generator (struct objcode *obj, const unsigned char cellsz)
+static void init_elf_generator (struct objcode *obj, const unsigned long nonested, const unsigned char cellsz)
 {
 	obj->cap    = BUFFER_GROWTH_FACTOR;
 	obj->buffer = (unsigned char*) calloc(BUFFER_GROWTH_FACTOR, sizeof(*obj->buffer));
 
 	CHECK_POINTER(obj->buffer, "reserving space for object code");
-	obj->vrip   = ENTRY_VIRTUAL_ADDRESS;
+	obj->vrip = ENTRY_VIRTUAL_ADDRESS;
 
 	const unsigned char intro[] =
 	{
@@ -99,6 +112,9 @@ static void init_elf_generator (struct objcode *obj, const unsigned char cellsz)
 
 	write_object_code(obj, intro, sizeof(intro));
 	obj->immsz = (enum immxxsz) cellsz;
+
+	obj->jmps = (struct jump*) calloc(nonested, sizeof(struct jump));
+	CHECK_POINTER(obj->jmps, "reserving space for branch-handling");
 }
 
 static void dump_object_code (struct objcode *obj, const char *filename, const unsigned int tapesz)
@@ -402,4 +418,107 @@ static void emmit_amd64_out_inp (struct objcode *obj, const unsigned long times,
 	{
 		write_object_code(obj, instruction.source, instruction.length);
 	}
+}
+
+static void emmit_amd64_branches (struct objcode *obj, const char mnemonic)
+{
+	if (mnemonic == ']')
+	{
+		struct amd64inst str8jmp =
+		{
+			/* movq rax, <address>
+			 * jmp rax
+			 */
+			.source =
+			{
+				0x48, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0xff, 0xe0
+			},
+			.immOffset = 2,
+			.length = 12
+		};
+
+		struct jump *last = &obj->jmps[--obj->jmp];
+		const unsigned int relative = (obj->vrip + str8jmp.length) - last->afterJmp;
+
+		/* patches:
+		 * 1. relative address when '[' was defined
+		 * 2. absolute address where to jump everytime ']' is found
+		 */
+		insert_immxx_into_instruction(relative, last->offset, IMM_32, obj->buffer);
+		insert_immxx_into_instruction(last->beforeJmp, str8jmp.immOffset, IMM_32, str8jmp.source);
+
+		write_object_code(obj, str8jmp.source, str8jmp.length);
+		return;
+	}
+
+	static const struct amd64inst instructions[4] =
+	{
+		{
+			/* movb al, [r8]
+			 * cmpb al, 0
+			 * je   <address>
+			 */
+			.source =
+			{
+				0x41, 0x8a, 0x00,
+				0x3c, 0x00,
+				0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+			},
+			.immOffset = 7,
+			.length = 11
+		},
+		{
+			/* movw ax, [r8]
+			 * cmpw ax, 0
+			 * je   <address>
+			 */
+			.source =
+			{
+				0x66, 0x41, 0x8b, 0x00,
+				0x66, 0x3d, 0x00, 0x00,
+				0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+			},
+			.immOffset = 10,
+			.length = 14
+		},
+		{
+			/* movl eax, [r8]
+			 * cmpl eax, 0
+			 * je   <address>
+			 */
+			.source =
+			{
+				0x41, 0x8b, 0x00,
+				0x3d, 0x00, 0x00, 0x00, 0x00,
+				0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+			},
+			.immOffset = 10,
+			.length = 14
+		},
+		{
+			/* movq rax, [r8]
+			 * cmpq rax, 0
+			 * je   <address>
+			 */
+			.source =
+			{
+				0x49, 0x8b, 0x00,
+				0x48, 0x83, 0xf8, 0x00,
+				0x0f, 0x84, 0x00, 0x00, 0x00, 0x00
+			},
+			.immOffset = 9,
+			.length = 13
+		},
+	};
+
+	const unsigned int pick = ((obj->immsz == 8) ? 3 : (obj->immsz >> 1));
+	struct amd64inst instruction =  instructions[pick];
+
+	struct jump *jmp = &obj->jmps[obj->jmp++];
+	jmp->offset      = obj->len + instruction.immOffset;
+	jmp->beforeJmp   = obj->vrip;
+
+	write_object_code(obj, instruction.source, instruction.length);
+	jmp->afterJmp = obj->vrip;
 }

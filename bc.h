@@ -30,7 +30,6 @@ struct token
 {
 	unsigned long parnerPosition;
 	unsigned long groupSize;
-	unsigned long jmp;
 	struct
 	{
 		char           *context;
@@ -42,7 +41,7 @@ struct token
 
 struct stream
 {
-	struct token *stream;
+	struct token  *stream;
 	size_t        length;
 	size_t        capacity;
 	unsigned long nonested;
