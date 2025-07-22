@@ -1,44 +1,19 @@
 
-	Program's flags:
+	bc - brainfuck compiler for amd64 plus transpiler for amd64 and aarch64
 
-	-c or --compile  <filename>
-	file to be compiled (mandatory)
+	this is my first compiler. For the first time i feel myself like a real programmer
+	:)
 
-	-o or --output  <name>
-	output filename (like gcc -o)
-	~ default: a.out
+	$ make
+	$ ./bc --usage
+	$ ./bc -c brainfuck/e.bf
+	$ chmod +x a.out
+	$ ./a.out
 
-	-S or --source  <name>
-	emmit assembly file instead of ELF
-	~ default: a.s
+	notes:
+	bc only produces ELF files for amd64 arch, however it can produce arm64 if you provide
+	the --source (-S) flag and -A arm64 (--arch=arm64)
 
-	-T or --tape <number>
-	length of brainfuck program memory (must be >= 30000)
-	~ default: 30000
-
-	-C or --cell <number (1|2|4|8)>
-	cell width in terms of bytes. it can only be either 1, 2, 4 or 8
-	~ default: 1
-
-	-u or --usage:
-	print usage/help
-
-	-s or --safe
-	run safe-mode emulation (check overflow/underflow, no file output)
-	~ note: overwrites -E
-
-	-E or --emu-mem
-	inspect memory at @ locations (debug-mode)
-
-	-O or --offset <number>
-	memory offset to start display from (only if -E is active)
-	~ default: 0
-
-	-d or --display <number>
-	how many cells to show from offset (only if -E is active)
-	~ default: 100
-
-	-g or --group <number>
-	number of memory cells per row/line in display (only if -E is active)
-	~ default: 10
+	naif19ilu - already 20 but trying not to be naif...
+	Jul 22, 2025
 
