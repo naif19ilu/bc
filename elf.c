@@ -17,7 +17,7 @@
 #define PROGRAM_HEADER_LENGTH   56
 #define ELF_PRELUDE_LENGTH      (ELF_HEADER_LENGTH + PROGRAM_HEADER_LENGTH)
 
-#define LARGEST_INST_LENGTH     14
+#define LARGEST_INST_LENGTH     26
 
 enum immxxsz
 {
@@ -52,6 +52,8 @@ static void insert_immxx_into_instruction (const unsigned long, size_t, const en
 static void emmit_amd64_inc_dec (struct objcode*, const unsigned long, const char);
 static void emmit_amd64_nxt_prv (struct objcode*, const unsigned long, const char);
 
+static void emmit_amd64_out_inp (struct objcode*, const unsigned long, const char);
+
 void elf_produce (const struct stream *stream, const char *filename, const unsigned int tapesz, const unsigned char cellsz)
 {
 	struct objcode obj;
@@ -69,6 +71,9 @@ void elf_produce (const struct stream *stream, const char *filename, const unsig
 
 			case '<':
 			case '>': emmit_amd64_nxt_prv(&obj, token->groupSize, mnemonic); break;
+
+			case ',':
+			case '.': emmit_amd64_out_inp(&obj, token->groupSize, mnemonic); break;
 		}
 	}
 
@@ -204,7 +209,7 @@ static void insert_immxx_into_instruction (const unsigned long imm, size_t offse
 	}
 }
 
-static void emmit_amd64_inc_dec (struct objcode *obj, const unsigned long imm, const char class)
+static void emmit_amd64_inc_dec (struct objcode *obj, const unsigned long imm, const char mnemonic)
 {	
 	static const struct amd64inst instructions[8] =
 	{
@@ -303,14 +308,14 @@ static void emmit_amd64_inc_dec (struct objcode *obj, const unsigned long imm, c
 		}
 	};
 
-	const unsigned int pick = ((class == '-') ? 0 : 4) + ((obj->immsz == 8) ? 3 : (obj->immsz >> 1));
+	const unsigned int pick = ((mnemonic == '-') ? 0 : 4) + ((obj->immsz == 8) ? 3 : (obj->immsz >> 1));
 	struct amd64inst instruction = instructions[pick];
 
 	insert_immxx_into_instruction(imm, instruction.immOffset, obj->immsz, instruction.source);
 	write_object_code(obj, instruction.source, instruction.length);
 }
 
-static void emmit_amd64_nxt_prv (struct objcode *obj, const unsigned long imm, const char class)
+static void emmit_amd64_nxt_prv (struct objcode *obj, const unsigned long imm, const char mnemonic)
 {
 	static const struct amd64inst instructions[2] =
 	{
@@ -340,9 +345,61 @@ static void emmit_amd64_nxt_prv (struct objcode *obj, const unsigned long imm, c
 		}
 	};
 
-	const unsigned int pick = (class == '>') ? 0 : 1;
+	const unsigned int pick = (mnemonic == '>') ? 0 : 1;
 	struct amd64inst instruction = instructions[pick];
 
 	insert_immxx_into_instruction(imm, instruction.immOffset, obj->immsz, instruction.source);
 	write_object_code(obj, instruction.source, instruction.length);
+}
+
+static void emmit_amd64_out_inp (struct objcode *obj, const unsigned long times, const char mnemonic)
+{
+	static const struct amd64inst instructions[2] =
+	{
+
+		/* mov rax, 1
+		 * mov rdi, 1
+		 * mov rsi, r8
+		 * mov rdx, 1
+		 * syscall
+		 */
+		{
+			.source =
+			{
+				0x48, 0xc7, 0xc0, 0x01, 0x00, 0x00, 0x00,
+				0x48, 0xc7, 0xc7, 0x01, 0x00, 0x00, 0x00,
+				0x4c, 0x89, 0xc6,            
+				0x48, 0xc7, 0xc2, 0x01, 0x00, 0x00, 0x00,
+				0x0f, 0x05,
+			},
+			.immOffset = 0,
+			.length = LARGEST_INST_LENGTH
+		},
+		/* mov rax, 0
+		 * mov rdi, 0
+		 * mov rsi, r8
+		 * mov rdx, 1
+		 * syscall
+		 */
+		{
+			.source =
+			{
+				0x48, 0xc7, 0xc0, 0x00, 0x00, 0x00, 0x00,
+				0x48, 0xc7, 0xc7, 0x00, 0x00, 0x00, 0x00,
+				0x4c, 0x89, 0xc6,            
+				0x48, 0xc7, 0xc2, 0x01, 0x00, 0x00, 0x00,
+				0x0f, 0x05,
+			},
+			.immOffset = 0,
+			.length = LARGEST_INST_LENGTH
+		}
+	};
+
+	const unsigned int pick = (mnemonic == '.') ? 0 : 1;
+	struct amd64inst instruction = instructions[pick];
+
+	for (unsigned long i = 0; i < times; i++)
+	{
+		write_object_code(obj, instruction.source, instruction.length);
+	}
 }
