@@ -517,8 +517,14 @@ static void emmit_amd64_branches (struct objcode *obj, const char mnemonic)
 
 	struct jump *jmp = &obj->jmps[obj->jmp++];
 	jmp->offset      = obj->len + instruction.immOffset;
+	/* address before writing the instruction.source, this is needed since this is the absolute
+	 * address where ] will jump
+	 */
 	jmp->beforeJmp   = obj->vrip;
 
 	write_object_code(obj, instruction.source, instruction.length);
+	/* address after writing the instruction.source, this is needed since it's used to calculate
+	 * the relative address for '[' jumps
+	 */
 	jmp->afterJmp = obj->vrip;
 }
