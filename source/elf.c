@@ -53,7 +53,7 @@ struct amd64inst
 };
 
 static void init_elf_generator (struct objcode*, const unsigned long, const unsigned char);
-static void dump_object_code (struct objcode*, const char*, const unsigned int);
+static void dump_object_code (struct objcode*, const char*, const unsigned int, const unsigned char);
 
 static void write_object_code (struct objcode*, const unsigned char*, const size_t);
 static void insert_immxx_into_instruction (const unsigned long, size_t, const enum immxxsz, unsigned char*);
@@ -90,7 +90,7 @@ void elf_produce (const struct stream *stream, const char *filename, const unsig
 		}
 	}
 
-	dump_object_code(&obj, filename, tapesz);
+	dump_object_code(&obj, filename, tapesz, cellsz);
 }
 
 static void init_elf_generator (struct objcode *obj, const unsigned long nonested, const unsigned char cellsz)
@@ -117,7 +117,7 @@ static void init_elf_generator (struct objcode *obj, const unsigned long noneste
 	CHECK_POINTER(obj->jmps, "reserving space for branch-handling");
 }
 
-static void dump_object_code (struct objcode *obj, const char *filename, const unsigned int tapesz)
+static void dump_object_code (struct objcode *obj, const char *filename, const unsigned int tapesz, const unsigned char cellsz)
 {
 	FILE *file = fopen(filename, "wb");
 	if (file == NULL)
@@ -183,15 +183,13 @@ static void dump_object_code (struct objcode *obj, const char *filename, const u
 	 * 2. At offset 72 : `p_offset` for text segment
 	 * 3. At offset 80 : `p_vaddr`  for text segment
 	 * 4. At offset 96 : `p_filesz` for text segment (object code length)
-	 * 5. At offset 104: `p_memsz`  for text segment (object code length + tapesz)
+	 * 5. At offset 104: `p_memsz`  for text segment (object code length + tapesz) // TODO mul tapesz * cellsz
 	 */
-	insert_immxx_into_instruction(ENTRY_VIRTUAL_ADDRESS,  24 , IMM_64, elfprelude);
-	insert_immxx_into_instruction(P_OFFSET_PROG_HEADER_1, 72 , IMM_64, elfprelude);
-	insert_immxx_into_instruction(ENTRY_VIRTUAL_ADDRESS,  80 , IMM_64, elfprelude);
-	insert_immxx_into_instruction(obj->len,               96 , IMM_64, elfprelude);
-	insert_immxx_into_instruction(obj->len + tapesz,      104, IMM_64, elfprelude);
-
-	printf("object code length: %ld\n", obj->len);
+	insert_immxx_into_instruction(ENTRY_VIRTUAL_ADDRESS,      24 , IMM_64, elfprelude);
+	insert_immxx_into_instruction(P_OFFSET_PROG_HEADER_1,     72 , IMM_64, elfprelude);
+	insert_immxx_into_instruction(ENTRY_VIRTUAL_ADDRESS,      80 , IMM_64, elfprelude);
+	insert_immxx_into_instruction(obj->len,                   96 , IMM_64, elfprelude);
+	insert_immxx_into_instruction(obj->len + tapesz * cellsz, 104, IMM_64, elfprelude);
 
 	if (fwrite(elfprelude, 1, sizeof(elfprelude), file) != ELF_PRELUDE_LENGTH)
 	{
