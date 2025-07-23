@@ -119,14 +119,14 @@ void asm_gen_asm (const struct stream *stream, const char *filename, const unsig
 		const struct token *token = &stream->stream[i];
 		switch (token->meta.mnemonic)
 		{
-			case '+': emmiters[0] (&asmg, token->groupSize);      break;
-			case '-': emmiters[1] (&asmg, token->groupSize);      break;
-			case '>': emmiters[2] (&asmg, token->groupSize);      break;
-			case '<': emmiters[3] (&asmg, token->groupSize);      break;
-			case '.': emmiters[4] (&asmg, token->groupSize);      break;
-			case ',': emmiters[5] (&asmg, token->groupSize);      break;
-			case '[': emmiters[6] (&asmg, token->parnerPosition); break;
-			case ']': emmiters[7] (&asmg, token->parnerPosition); break;
+			case '+': emmiters[0] (&asmg, token->groupSize); break;
+			case '-': emmiters[1] (&asmg, token->groupSize); break;
+			case '>': emmiters[2] (&asmg, token->groupSize); break;
+			case '<': emmiters[3] (&asmg, token->groupSize); break;
+			case '.': emmiters[4] (&asmg, token->groupSize); break;
+			case ',': emmiters[5] (&asmg, token->groupSize); break;
+			case '[': emmiters[6] (&asmg, token->nolbl);     break;
+			case ']': emmiters[7] (&asmg, token->nolbl);     break;
 		}
 	}
 

@@ -28,8 +28,8 @@ enum arch
 
 struct token
 {
-	unsigned long parnerPosition;
 	unsigned long groupSize;
+	unsigned long nolbl;
 	struct
 	{
 		char           *context;

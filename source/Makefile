@@ -15,11 +15,11 @@ $(final): $(objs)
 %.o: %.c
 	cc	-c $< $(flags)
 amd: a.s
-	as	a.s -g
+	as	a.s
 	ld	a.out -o asm
 	./asm
 arm: a.s
-	aarch64-linux-gnu-as	a.s -g
+	aarch64-linux-gnu-as	a.s
 	aarch64-linux-gnu-ld	a.out -o asm
 	qemu-aarch64 ./asm
 clear:

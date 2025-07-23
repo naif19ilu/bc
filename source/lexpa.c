@@ -119,6 +119,8 @@ static struct token *handle_accumulative (struct stream *stream, const char *con
 
 static void handle_opening (struct openLoopStack *stack, struct stream *stream, const char *context, const unsigned short numline, const unsigned short offline)
 {
+	static unsigned long nolabels = 0;
+
 	if (stack->at == OPENLOOP_STACK_MAX_CAP)
 	{
 		fatal_source_fatal(context, numline, offline, FATAL_SRC_MAX_NESTED_LEVEL, FATAL_ISNT_MULTIPLE);
@@ -127,7 +129,7 @@ static void handle_opening (struct openLoopStack *stack, struct stream *stream, 
 	struct token *t = get_next_token(stream);
 
 	t->groupSize      = 1;
-	t->parnerPosition = stream->length - 1;
+	t->nolbl          = nolabels++;
 	t->meta.numline   = numline;
 	t->meta.offline   = offline;
 	t->meta.mnemonic  = *context;
@@ -146,9 +148,7 @@ static void handle_closing (struct openLoopStack *stack, struct stream *stream, 
 	struct token *close   = get_next_token(stream);
 	struct token* open    = stack->stack[--stack->at];
 
-	close->parnerPosition = open->parnerPosition;
-	open->parnerPosition  = stream->length - 1;
-
+	close->nolbl          = open->nolbl;
 	close->groupSize      = 1;
 	close->meta.numline   = numline;
 	close->meta.offline   = offline;
