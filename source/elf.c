@@ -183,7 +183,7 @@ static void dump_object_code (struct objcode *obj, const char *filename, const u
 	 * 2. At offset 72 : `p_offset` for text segment
 	 * 3. At offset 80 : `p_vaddr`  for text segment
 	 * 4. At offset 96 : `p_filesz` for text segment (object code length)
-	 * 5. At offset 104: `p_memsz`  for text segment (object code length + tapesz) // TODO mul tapesz * cellsz
+	 * 5. At offset 104: `p_memsz`  for text segment (object code length + tapesz)
 	 */
 	insert_immxx_into_instruction(ENTRY_VIRTUAL_ADDRESS,      24 , IMM_64, elfprelude);
 	insert_immxx_into_instruction(P_OFFSET_PROG_HEADER_1,     72 , IMM_64, elfprelude);
@@ -362,7 +362,7 @@ static void emmit_amd64_nxt_prv (struct objcode *obj, const unsigned long imm, c
 	const unsigned int pick = (mnemonic == '>') ? 0 : 1;
 	struct amd64inst instruction = instructions[pick];
 
-	insert_immxx_into_instruction(imm, instruction.immOffset, obj->immsz, instruction.source);
+	insert_immxx_into_instruction(imm * obj->immsz, instruction.immOffset, obj->immsz, instruction.source);
 	write_object_code(obj, instruction.source, instruction.length);
 }
 
