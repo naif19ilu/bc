@@ -33,7 +33,7 @@ void fatal_file_ops (const char *filename)
 void fatal_memory_ops (const char *desc)
 {
 	const char *const fmt =
-	"bc:\x1b[31mfatal:\x1b[0m cannot continue due to memory managment issues\n"
+	"bc:\x1b[31mfatal:\x1b[0m cannot continue due to memory management issues\n"
 	"  reason: %s\n"
 	"  while : %s\n"
 	"  aborting now!\n";
